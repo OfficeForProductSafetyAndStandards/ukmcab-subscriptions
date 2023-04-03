@@ -5,6 +5,6 @@
 /// </summary>
 public interface ICabUpdatesReceiver
 {
-    Task<IEnumerable<CabUpdateMessage>> GetCabUpdateMessagesAsync();
+    Task<CabUpdateMessage?> GetCabUpdateMessageAsync();
     Task MarkAsProcessedAsync(CabUpdateMessage message);
 }

@@ -12,13 +12,7 @@ public class CabUpdatesReceiver : ICabUpdatesReceiver
         _options = options;
     }
 
-
-    /// <summary>
-    /// Gets a batch of messages from the Queue
-    /// </summary>
-    /// <returns></returns>
-    /// <exception cref="NotImplementedException"></exception>
-    public Task<IEnumerable<CabUpdateMessage>> GetCabUpdateMessagesAsync()
+    public Task<CabUpdateMessage?> GetCabUpdateMessageAsync()
     {
         throw new NotImplementedException();
     }

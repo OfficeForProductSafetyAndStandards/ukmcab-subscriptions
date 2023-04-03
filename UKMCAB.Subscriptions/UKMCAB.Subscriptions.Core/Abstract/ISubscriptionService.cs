@@ -20,9 +20,9 @@ public interface ISubscriptionService
 
     Task UpdateFrequencyAsync(string subscriptionId, Frequency frequency);
 
-    Task IsSubscribedAsync(string emailAddress, string searchQuery);
+    Task<bool> IsSubscribedAsync(string emailAddress, string searchQuery);
 
-    Task IsSubscribedAsync(string emailAddress, Guid cabId);
+    Task<bool> IsSubscribedAsync(string emailAddress, Guid cabId);
 
     Task UnsubscribeAsync(string emailAddress);
 

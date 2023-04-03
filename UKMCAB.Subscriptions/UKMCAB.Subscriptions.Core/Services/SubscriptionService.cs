@@ -17,14 +17,14 @@ public class SubscriptionService : ISubscriptionService
         _subscriptionRepository = subscriptionRepository;
     }
 
-    public Task IsSubscribedAsync(string emailAddress, string searchQuery)
+    public Task<bool> IsSubscribedAsync(string emailAddress, string searchQuery)
     {
         // use _subscriptionRepository to get a record for this subscription
 
         throw new NotImplementedException();
     }
 
-    public Task IsSubscribedAsync(string emailAddress, Guid cabId)
+    public Task<bool> IsSubscribedAsync(string emailAddress, Guid cabId)
     {
         throw new NotImplementedException();
     }

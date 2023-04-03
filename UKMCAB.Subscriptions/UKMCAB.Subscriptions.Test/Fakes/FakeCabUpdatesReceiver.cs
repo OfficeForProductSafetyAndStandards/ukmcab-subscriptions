@@ -4,13 +4,20 @@ namespace UKMCAB.Subscriptions.Test.Fakes;
 
 public class FakeCabUpdatesReceiver : ICabUpdatesReceiver
 {
-    public Task<IEnumerable<CabUpdateMessage>> GetCabUpdateMessagesAsync()
+    private CabUpdateMessage? _cabUpdateMessage = null;
+
+    public void Push(CabUpdateMessage cabUpdateMessage)
     {
-        throw new NotImplementedException();
+        _cabUpdateMessage = cabUpdateMessage;
     }
 
-    public Task MarkAsProcessedAsync(CabUpdateMessage message)
+    public Task<CabUpdateMessage?> GetCabUpdateMessageAsync()
     {
-        throw new NotImplementedException();
+        var rv = _cabUpdateMessage;
+        _cabUpdateMessage = null;
+        return Task.FromResult(rv);
     }
+
+    public Task MarkAsProcessedAsync(CabUpdateMessage message) => Task.CompletedTask;
+
 }

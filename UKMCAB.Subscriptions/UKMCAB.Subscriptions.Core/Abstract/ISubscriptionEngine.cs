@@ -26,7 +26,7 @@ public interface ISubscriptionEngine
     /// the buffered email to represent the latest change state.
     /// </summary>
     /// <returns></returns>
-    Task ProcessCabSubsribersAsync(CancellationToken cancellationToken);
+    Task ProcessCabSubscribersAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Sends buffered/persisted email notifications once they reach their due-date based on the frequency of the email subscription.
@@ -37,4 +37,9 @@ public interface ISubscriptionEngine
     /// <returns></returns>
 
     Task ProcessSendEmailNotificationsAsync(CancellationToken cancellationToken);
+}
+
+public interface ISubscriptionEngineTestable
+{
+    Task<bool> ProcessSingleCabUpdateAsync();
 }

@@ -1,11 +1,12 @@
 ﻿using Microsoft.Extensions.Logging;
 using UKMCAB.Subscriptions.Core.Abstract;
 using UKMCAB.Subscriptions.Core.Integration.CabUpdates;
+using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 using UKMCAB.Subscriptions.Core.Integration.Search;
 using UKMCAB.Subscriptions.Core.Repositories;
 
 namespace UKMCAB.Subscriptions.Core.Services;
-public class SubscriptionEngine : ISubscriptionEngine
+public class SubscriptionEngine : ISubscriptionEngine, ISubscriptionEngineTestable
 {
     private readonly SubscriptionServicesCoreOptions _options;
     private readonly ILogger<SubscriptionEngine> _logger;
@@ -13,8 +14,11 @@ public class SubscriptionEngine : ISubscriptionEngine
     private readonly ICabSearchService _searchService;
     private readonly ISubscriptionRepository _repository;
     private readonly IOutboxRepository _outboxRepository;
+    private readonly IOutboundEmailSender _outboundEmailSender;
+    private readonly ISentNotificationRepository _sentNotificationRepository;
 
-    public SubscriptionEngine(SubscriptionServicesCoreOptions options, ILogger<SubscriptionEngine> logger, ICabUpdatesReceiver cabUpdatesReceiver, ICabSearchService searchService, ISubscriptionRepository repository, IOutboxRepository outboxRepository)
+    public SubscriptionEngine(SubscriptionServicesCoreOptions options, ILogger<SubscriptionEngine> logger, ICabUpdatesReceiver cabUpdatesReceiver, ICabSearchService searchService, ISubscriptionRepository repository, 
+        IOutboxRepository outboxRepository, IOutboundEmailSender outboundEmailSender, ISentNotificationRepository sentNotificationRepository)
     {
         _options = options;
         _logger = logger;
@@ -22,28 +26,37 @@ public class SubscriptionEngine : ISubscriptionEngine
         _searchService = searchService;
         _repository = repository;
         _outboxRepository = outboxRepository;
+        _outboundEmailSender = outboundEmailSender;
+        _sentNotificationRepository = sentNotificationRepository;
     }
 
     /// <inheritdoc />
-    public async Task ProcessCabSubsribersAsync(CancellationToken cancellationToken)
+    public async Task ProcessCabSubscribersAsync(CancellationToken cancellationToken)
     {
         while(!cancellationToken.IsCancellationRequested)
         {
-            var updates = await _cabUpdatesReceiver.GetCabUpdateMessagesAsync();
-            if(updates.Any())
+            if(!await ProcessSingleCabUpdateAsync())
             {
-                foreach(var update in updates)
-                {
-                    // todo: create notification and persist them
-
-
-                    await _cabUpdatesReceiver.MarkAsProcessedAsync(update);
-                }
+                await Task.Delay(10_000, cancellationToken);
             }
-            await Task.Delay(1000, cancellationToken);
         }
+    }
 
-        
+    public async Task<bool> ProcessSingleCabUpdateAsync()
+    {
+        var update = await _cabUpdatesReceiver.GetCabUpdateMessageAsync();
+        if (update != null)
+        {
+            // todo: create notification and persist them
+            // ...
+
+            await _cabUpdatesReceiver.MarkAsProcessedAsync(update);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
     /// <inheritdoc />
@@ -63,16 +76,7 @@ public class SubscriptionEngine : ISubscriptionEngine
     {
         // for each pending notification
         //  check whether it's due based on the frequency of the subscription
-        //  create the email and put it into an Outbox (azure storage table)
-        // NOTE: WE DO NOT WANT TO SEND ANY REAL EMAILS YET, JUST SAVE THEM IN TABLE STORAGE IN AN OUTBOX FOR NOW.
-
-        /*
-            e.g.
-            await _outboxRepository.SaveAsync(new Domain.Notification()
-            {
-                EmailAddress = 
-            })
-        */
+        
 
         throw new NotImplementedException();
     }
