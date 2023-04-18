@@ -1,17 +1,24 @@
-﻿using UKMCAB.Subscriptions.Core.Domain;
+﻿using Notify.Client;
+using UKMCAB.Subscriptions.Core.Domain;
 
 namespace UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 
 public interface IOutboundEmailSender
 {
-    Task SendAsync(Notification notification);
+    Task SendAsync(string templateId, EmailAddress emailAddress, Dictionary<string, dynamic> personalisation);
 }
 
 public class OutboundEmailSender : IOutboundEmailSender
 {
-    public async Task SendAsync(Notification notification)
+    private readonly NotificationClient _client;
+
+    public OutboundEmailSender(string apiKey)
     {
-        //todo
-        throw new NotImplementedException();
+        _client = new NotificationClient(apiKey);
+    }
+
+    public async Task SendAsync(string templateId, EmailAddress emailAddress, Dictionary<string, dynamic> personalisation)
+    {
+        await _client.SendEmailAsync(emailAddress, templateId, personalisation);
     }
 }

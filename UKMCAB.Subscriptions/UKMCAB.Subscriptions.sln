@@ -3,16 +3,18 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.33516.290
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UKMCAB.Subscriptions.Core", "UKMCAB.Subscriptions.Core\UKMCAB.Subscriptions.Core.csproj", "{77D7C2DC-02A9-4E9C-9F70-E452BFA0D5B7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UKMCAB.Subscriptions.Core", "UKMCAB.Subscriptions.Core\UKMCAB.Subscriptions.Core.csproj", "{77D7C2DC-02A9-4E9C-9F70-E452BFA0D5B7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UKMCAB.Subscriptions.Test", "UKMCAB.Subscriptions.Test\UKMCAB.Subscriptions.Test.csproj", "{F7A04EBB-F399-4C65-9BED-37CBE11DD085}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UKMCAB.Subscriptions.Test", "UKMCAB.Subscriptions.Test\UKMCAB.Subscriptions.Test.csproj", "{F7A04EBB-F399-4C65-9BED-37CBE11DD085}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{7C62DED1-E3B7-4532-96EB-F2676EB57368}"
 	ProjectSection(SolutionItems) = preProject
 		guidance.md = guidance.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UKMCAB.Subscriptions.Host.Console", "UKMCAB.Subscriptions.Host.Console\UKMCAB.Subscriptions.Host.Console.csproj", "{0A6391D7-6666-487D-B3A3-1329D0864CF3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UKMCAB.Subscriptions.Host.Console", "UKMCAB.Subscriptions.Host.Console\UKMCAB.Subscriptions.Host.Console.csproj", "{0A6391D7-6666-487D-B3A3-1329D0864CF3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UKMCAB.Subscriptions.AzFunc", "UKMCAB.Subscriptions.AzFunc\UKMCAB.Subscriptions.AzFunc.csproj", "{E9CB0ED8-4D37-4E3A-83F0-B27F9E76124E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,6 +34,10 @@ Global
 		{0A6391D7-6666-487D-B3A3-1329D0864CF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0A6391D7-6666-487D-B3A3-1329D0864CF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0A6391D7-6666-487D-B3A3-1329D0864CF3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E9CB0ED8-4D37-4E3A-83F0-B27F9E76124E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E9CB0ED8-4D37-4E3A-83F0-B27F9E76124E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E9CB0ED8-4D37-4E3A-83F0-B27F9E76124E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E9CB0ED8-4D37-4E3A-83F0-B27F9E76124E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

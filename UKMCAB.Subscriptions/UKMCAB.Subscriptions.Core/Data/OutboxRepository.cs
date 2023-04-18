@@ -1,6 +1,6 @@
 ﻿using UKMCAB.Subscriptions.Core.Domain;
 
-namespace UKMCAB.Subscriptions.Core.Repositories;
+namespace UKMCAB.Subscriptions.Core.Data;
 
 /// <summary>
 /// Responsible for persisting outbound notifications until they are sent

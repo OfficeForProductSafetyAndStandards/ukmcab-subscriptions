@@ -1,57 +1,55 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Azure.Core;
 using Microsoft.Extensions.DependencyInjection;
-using UKMCAB.Subscriptions.Core.Abstract;
+using System.Text.Json;
+using UKMCAB.Subscriptions.Core.Common.Security.Tokens;
+using UKMCAB.Subscriptions.Core.Data;
+using UKMCAB.Subscriptions.Core.Domain;
 using UKMCAB.Subscriptions.Core.Integration.CabUpdates;
+using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 using UKMCAB.Subscriptions.Core.Integration.Search;
-using UKMCAB.Subscriptions.Core.Repositories;
 using UKMCAB.Subscriptions.Core.Services;
 
 namespace UKMCAB.Subscriptions.Core;
 
 public static class SubscriptionsCoreServiceCollectionExtensions
 {
-    public static IServiceCollection AddSubscriptionServices(this IServiceCollection services, SubscriptionServicesCoreOptions options)
+    public class Configuration
+    {
+        public IDateTimeProvider? DateTimeProvider { get; set; }
+        public IOutboundEmailSender? OutboundEmailSender { get; set; }
+    }
+
+    public static IServiceCollection AddSubscriptionServices(this IServiceCollection services, SubscriptionServicesCoreOptions options, Action<Configuration>? configurator = null)
     {
         ArgumentNullException.ThrowIfNull(services);
 
+        var config = new Configuration();
+        configurator?.Invoke(config);
+
         services.AddSingleton(options);
+
+        services.AddSingleton(new AzureDataConnectionString(options.DataConnectionString));
 
         // repositories
         services.AddSingleton<IOutboxRepository, OutboxRepository>();
         services.AddSingleton<ISubscriptionRepository, SubscriptionRepository>();
         services.AddSingleton<ISentNotificationRepository, SentNotificationRepository>();
+        services.AddSingleton<IBlockedEmailsRepository, BlockedEmailsRepository>();
+        services.AddSingleton<ITelemetryRepository, TelemetryRepository>();
+        services.AddSingleton<IRepositories, Repositories>();
         
         // integration dependency services
         services.AddSingleton<ICabSearchService, CabSearchService>();
         services.AddSingleton<ICabUpdatesReceiver, CabUpdatesReceiver>();
         
         // date time provider
-        services.AddSingleton<IDateTimeProvider, RealDateTimeProvider>();
-        
-        // the main consumable services
-        services.AddSingleton<ISubscriptionEngine, SubscriptionEngine>();
-        services.AddSingleton<ISubscriptionService, SubscriptionService>();
+        services.AddSingleton(config.DateTimeProvider ?? new RealDateTimeProvider());
 
-        return services;
-    }
+        services.AddSingleton(config.OutboundEmailSender ?? new OutboundEmailSender(options.GovUkNotifyApiKey));
 
-    public static IServiceCollection AddSubscriptionServices(this IServiceCollection services, SubscriptionServicesCoreOptions options, IDateTimeProvider dateTimeProvider, ICabSearchService cabSearchService, ICabUpdatesReceiver cabUpdatesReceiver)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-
-        services.AddSingleton(options);
-
-        // repositories
-        services.AddSingleton<IOutboxRepository, OutboxRepository>();
-        services.AddSingleton<ISubscriptionRepository, SubscriptionRepository>();
-        services.AddSingleton<ISentNotificationRepository, SentNotificationRepository>();
-
-        // integration dependency services
-        services.AddSingleton(cabSearchService);
-        services.AddSingleton(cabUpdatesReceiver);
-
-        // date time provider
-        services.AddSingleton(dateTimeProvider);
+        var jsonSerializerOptions = new JsonSerializerOptions();
+        jsonSerializerOptions.Converters.Add(new EmailAddressConverter());
+        services.AddSingleton<ISecureTokenProcessor>(new SecureTokenProcessor(options.EncryptionKey, jsonSerializerOptions));
 
         // the main consumable services
         services.AddSingleton<ISubscriptionEngine, SubscriptionEngine>();
