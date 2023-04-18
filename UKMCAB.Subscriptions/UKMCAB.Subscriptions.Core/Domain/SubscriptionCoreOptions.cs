@@ -6,7 +6,8 @@ public class SubscriptionServicesCoreOptions
 {
     public string DataConnectionString { get; set; }
     public string BaseUrl { get; set; }
-    public string EmailTemplateConfirmSubscription { get; set; }
+    public string EmailTemplateConfirmSearchSubscription { get; set; }
+    public string EmailTemplateConfirmCabSubscription { get; set; }
     public string EmailTemplateUpdateEmailAddress { get; set; }
     public string SearchApiUrl { get; set; }
     public string GovUkNotifyApiKey { get; set; }

@@ -145,6 +145,38 @@ public class SearchSubscriptionTests
     }
 
     [Test]
+    public async Task GetListOfSubscriptions()
+    {
+        const string email = "list@fsubs.com";
+        var subs = _services.GetRequiredService<ISubscriptionService>();
+
+        var queries = Enumerable.Range(1, 50).Select(x => $"?a={x}").ToArray();
+
+        var tasks = queries.Select(x => SubscribeSearchAsync(subs, email, x)).ToArray();
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+
+        Assert.That(tasks.All(x => x.Result.ValidationResult == ValidationResult.Success), Is.True);
+
+        var result1 = await subs.ListSubscriptionsAsync(email, null, 10).ConfigureAwait(false);
+        var result2 = await subs.ListSubscriptionsAsync(email, result1.ContinuationToken, 10).ConfigureAwait(false);
+        var result3 = await subs.ListSubscriptionsAsync(email, result2.ContinuationToken, 10).ConfigureAwait(false);
+        var result4 = await subs.ListSubscriptionsAsync(email, result3.ContinuationToken, 10).ConfigureAwait(false);
+        var result5 = await subs.ListSubscriptionsAsync(email, result4.ContinuationToken, 10).ConfigureAwait(false);
+
+        var ids = tasks.Select(x => x.Result.Id).OrderBy(x => x).ToArray();
+
+        var comparisonIds = result1.Subscriptions.Select(x => x.Id)
+            .Concat(result2.Subscriptions.Select(x => x.Id))
+            .Concat(result3.Subscriptions.Select(x => x.Id))
+            .Concat(result4.Subscriptions.Select(x => x.Id))
+            .Concat(result5.Subscriptions.Select(x => x.Id))
+            .OrderBy(x => x)
+            .ToArray();
+
+        Assert.That(ids.SequenceEqual(comparisonIds), Is.True);
+    }
+
+    [Test]
     public async Task UpdateEmailAddress()
     {
         var subs = _services.GetRequiredService<ISubscriptionService>();
@@ -178,8 +210,59 @@ public class SearchSubscriptionTests
         });
     }
 
+    [Test]
+    public async Task SubscribeToCab()
+    {
+        const string e = "john@cab.com";
+        var cabId = Guid.NewGuid();
+        var subs = _services.GetRequiredService<ISubscriptionService>();
+     
+        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily), _fakeConfirmationUrl);
+        Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));   
+        
+        var confirmSubscriptionResult = await subs.ConfirmCabSubscriptionAsync(requestSubscriptionResult.Token ?? throw new Exception("Token should not be null"));
+        Assert.That(confirmSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
+        Assert.That(confirmSubscriptionResult.Id, Is.Not.Null);
 
-    private async Task<ConfirmSearchSubscriptionResult> SubscribeSearchAsync(ISubscriptionService subs, string email, string query)
+        var subscription = await subs.GetSubscriptionAsync(confirmSubscriptionResult.Id);
+        Assert.That(subscription, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(subscription.Id, Is.EqualTo(confirmSubscriptionResult.Id));
+            Assert.That(subscription.SubscriptionType, Is.EqualTo(SubscriptionType.Cab));
+            Assert.That(subscription.Frequency, Is.EqualTo(Frequency.Daily));
+        });
+
+        var isSubscribed1 = await subs.IsSubscribedToCabAsync(e, cabId);
+        Assert.That(isSubscribed1);
+
+        var unsubscribed = await subs.UnsubscribeAsync(confirmSubscriptionResult.Id);
+        Assert.That(unsubscribed);
+        
+        var isSubscribed2 = await subs.IsSubscribedToCabAsync(e, cabId);
+        Assert.That(isSubscribed2, Is.False);
+    }
+
+    [Test]
+    public async Task BlockUnblockEmail()
+    {
+        const string e = "john@cab.com";
+        var cabId = Guid.NewGuid();
+        var subs = _services.GetRequiredService<ISubscriptionService>();
+
+        await subs.BlockEmailAsync(e);
+
+        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily), _fakeConfirmationUrl);
+        Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.EmailBlocked));
+        
+        await subs.UnblockEmailAsync(e);
+
+        var requestSubscriptionResult2 = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily), _fakeConfirmationUrl);
+        Assert.That(requestSubscriptionResult2.ValidationResult, Is.EqualTo(ValidationResult.Success));
+    }
+
+
+    private async Task<ConfirmSubscriptionResult> SubscribeSearchAsync(ISubscriptionService subs, string email, string query)
     {
         var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new SearchSubscriptionRequest(email, query, Frequency.Daily), _fakeConfirmationUrl);
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));

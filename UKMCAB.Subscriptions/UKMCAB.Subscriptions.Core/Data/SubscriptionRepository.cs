@@ -1,13 +1,14 @@
-﻿using UKMCAB.Subscriptions.Core.Data.Models;
+﻿using Azure;
+using UKMCAB.Subscriptions.Core.Data.Models;
 using UKMCAB.Subscriptions.Core.Domain;
 
 namespace UKMCAB.Subscriptions.Core.Data;
 
 public interface ISubscriptionRepository : IRepository
 {
-    Task AddAsync(SubscriptionEntity entity);
-    IAsyncEnumerable<SubscriptionEntity> GetAllAsync(string partitionKey);
+    Task UpsertAsync(SubscriptionEntity entity);
     Task<SubscriptionEntity?> GetAsync(SubscriptionKey key);
+    IAsyncEnumerable<Page<SubscriptionEntity>> GetAllAsync(string partitionKey, string? skip = null, int? take = null);
 }
 
 /// <summary>
@@ -17,9 +18,9 @@ public class SubscriptionRepository : Repository, ISubscriptionRepository
 {
     public SubscriptionRepository(AzureDataConnectionString dataConnectionString) : base(dataConnectionString, "subscriptions") { }
 
-    public async Task AddAsync(SubscriptionEntity entity)
+    public async Task UpsertAsync(SubscriptionEntity entity)
     {
-        await UpsertAsync(entity);
+        await base.UpsertAsync(entity);
     }
 
     public async Task<SubscriptionEntity?> GetAsync(SubscriptionKey key)
@@ -27,9 +28,9 @@ public class SubscriptionRepository : Repository, ISubscriptionRepository
         return await GetAsync<SubscriptionEntity>(key);
     }
 
-    public IAsyncEnumerable<SubscriptionEntity> GetAllAsync(string partitionKey)
+    public IAsyncEnumerable<Page<SubscriptionEntity>> GetAllAsync(string partitionKey, string? skip = null, int? take = null)
     {
-        return GetAllAsync<SubscriptionEntity>(partitionKey);
+        return GetAllAsync<SubscriptionEntity>(partitionKey, skip, take);
     }
 }
 

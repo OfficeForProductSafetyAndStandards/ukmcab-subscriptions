@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Azure.Data.Tables;
+using System.Runtime.Serialization;
 using UKMCAB.Subscriptions.Core.Domain;
 
 namespace UKMCAB.Subscriptions.Core.Data.Models;
@@ -14,6 +15,9 @@ public class SubscriptionEntity : ITableEntity
     public Frequency Frequency { get; set; }
     public Guid? CabId { get; set; }
     public string? SearchQueryString { get; set; }
+
+    [IgnoreDataMember]
+    public SubscriptionType SubscriptionType => CabId.HasValue ? SubscriptionType.Cab : SubscriptionType.Search;
 
     public SubscriptionEntity()
     {

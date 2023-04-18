@@ -1,4 +1,4 @@
-﻿namespace UKMCAB.Subscriptions.Core.Domain;
+﻿namespace UKMCAB.Subscriptions.Core.Domain.Exceptions;
 
 /// <summary>
 /// Represents a business rule/domain exception for UKMCAB.Subscriptions.Core

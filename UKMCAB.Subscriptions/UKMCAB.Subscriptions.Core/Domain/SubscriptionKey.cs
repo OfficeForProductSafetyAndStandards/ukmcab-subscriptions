@@ -5,6 +5,8 @@ public class SubscriptionKey : Keys
     public SubscriptionKey(string id) : base(id) { }
 
     public SubscriptionKey(EmailAddress emailAddress, string searchQueryString) : base(emailAddress.ToString().Md5(), searchQueryString.Md5()) { }
+    
+    public SubscriptionKey(EmailAddress emailAddress, Guid cabId) : base(emailAddress.ToString().Md5(), cabId.ToString()) { }
 
     public SubscriptionKey(Keys keys) : base(keys.PartitionKey, keys.RowKey) { }
 
