@@ -24,6 +24,16 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 7.0.x
+        
+    - name: Install GitVersion
+      uses: gittools/actions/gitversion/setup@v0.9.7
+      with:
+        versionSpec: '5.x'
+
+    - name: Determine Version
+      uses: gittools/actions/gitversion/execute@v0.9.7
+      with:
+        useConfigFile: true
     
     - name: Restore
       run: dotnet restore "${{ env.WORKING_DIRECTORY }}"
@@ -35,7 +45,7 @@ jobs:
     #  run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build --verbosity normal
     
     - name: Package nuget
-      run: dotnet pack "${{ env.WORKING_DIRECTORY }}/UKMCAB.Subscriptions.Core/UKMCAB.Subscriptions.Core.csproj" --configuration ${{ env.CONFIGURATION }} -o:package /p:PackageVersion=1.0.0.0
+      run: dotnet pack "${{ env.WORKING_DIRECTORY }}/UKMCAB.Subscriptions.Core/UKMCAB.Subscriptions.Core.csproj" --configuration ${{ env.CONFIGURATION }} -o:package /p:PackageVersion=$GITVERSION_SEMVER
     
     - name: Push generated package to GitHub registry
       run: dotnet nuget push "./package/*.nupkg"  --source https://nuget.pkg.github.com/OfficeForProductSafetyAndStandards/index.json   --api-key ${{ github.token }}
