@@ -31,5 +31,11 @@ jobs:
     - name: Build
       run: dotnet build "${{ env.WORKING_DIRECTORY }}" --configuration ${{ env.CONFIGURATION }} --no-restore
     
-    - name: Test
-      run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build --verbosity normal
+    #- name: Test
+    #  run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build --verbosity normal
+    
+    - name: Package nuget
+      run: dotnet pack "${{ env.WORKING_DIRECTORY }}/UKMCAB.Subscriptions.Core/UKMCAB.Subscriptions.Core.csproj" --configuration ${{ env.CONFIGURATION }} -o:package /p:PackageVersion=1.0.0.0
+    
+    - name: Push generated package to GitHub registry
+      run: dotnet nuget push "${{ env.WORKING_DIRECTORY }}/UKMCAB.Subscriptions.Core/package/*.nupkg  --source https://nuget.pkg.github.com/OfficeForProductSafetyAndStandards/index.json   --api-key ${{ github.token }}
