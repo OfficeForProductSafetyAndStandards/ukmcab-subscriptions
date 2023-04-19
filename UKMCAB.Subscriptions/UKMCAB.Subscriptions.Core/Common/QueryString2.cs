@@ -33,7 +33,7 @@ public class QueryString2
 
     public QueryString2 Remove(string[] keys)
     {
-        keys.ForEach(x => Remove(x));
+        keys?.ForEach(x => Remove(x));
         return this;
     }
 

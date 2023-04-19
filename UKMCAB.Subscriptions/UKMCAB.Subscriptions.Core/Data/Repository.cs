@@ -1,8 +1,6 @@
 ﻿using Azure;
 using Azure.Data.Tables;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using UKMCAB.Subscriptions.Core.Domain;
 
 namespace UKMCAB.Subscriptions.Core.Data;
 
@@ -49,9 +47,16 @@ public class Repository : IRepository
         return response.HasValue;
     }
 
-    public IAsyncEnumerable<Page<T>> GetAllAsync<T>(string partitionKey, string? skip = null, int? take = null) where T : class, ITableEntity
+    public IAsyncEnumerable<Page<T>> GetAllAsync<T>(string? partitionKey = null, string? continuationToken = null, int? take = null) where T : class, ITableEntity
     {
-        return _tableClient.QueryAsync<T>(x => x.PartitionKey == partitionKey, 20).AsPages(skip, take);
+        if(partitionKey == null)
+        {
+            return _tableClient.QueryAsync<T>(maxPerPage: take).AsPages(continuationToken, take);
+        }
+        else
+        {
+            return _tableClient.QueryAsync<T>(x => x.PartitionKey == partitionKey, take).AsPages(continuationToken, take);
+        }
     }
 
     protected async Task UpdateAsync(ITableEntity entity)

@@ -1,4 +1,6 @@
-﻿namespace UKMCAB.Subscriptions.Core.Common;
+﻿using System.Security.AccessControl;
+
+namespace UKMCAB.Subscriptions.Core.Common;
 
 public static class Timestamp
 {

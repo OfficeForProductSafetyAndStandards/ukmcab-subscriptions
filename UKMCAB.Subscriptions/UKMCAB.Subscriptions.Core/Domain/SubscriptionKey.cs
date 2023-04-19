@@ -1,4 +1,6 @@
-﻿namespace UKMCAB.Subscriptions.Core.Domain;
+﻿using UKMCAB.Subscriptions.Core.Data;
+
+namespace UKMCAB.Subscriptions.Core.Domain;
 
 public class SubscriptionKey : Keys
 {

@@ -6,7 +6,9 @@ using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 namespace UKMCAB.Subscriptions.Test.Fakes;
 public class FakeDateTimeProvider : IDateTimeProvider
 {
-    public DateTime UtcNow { get; set; }
+    private DateTime _utcNow;
+
+    public DateTime UtcNow { get => _utcNow; set => _utcNow = value.AsUtc(); }
 }
 
 public class FakeOutboundEmailSender : IOutboundEmailSender

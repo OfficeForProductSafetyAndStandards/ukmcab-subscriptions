@@ -15,6 +15,26 @@ public class SubscriptionEntity : ITableEntity
     public Frequency Frequency { get; set; }
     public Guid? CabId { get; set; }
     public string? SearchQueryString { get; set; }
+    public DateTime? DueBaseDate { get; set; }
+    public string? LastThumbprint { get; set; }
+    public string? BlobName { get; set; }
+
+
+    private const string _defaultThumbprint = "no_thumbprint";
+    public string CreateBlobName(string thumbprint) => $"{GetKeys()}-{thumbprint ?? _defaultThumbprint}.json";
+    public string CreateBlobName() => CreateBlobName(LastThumbprint ?? _defaultThumbprint);
+
+    public DateTime? GetNextDueDate(IDateTimeProvider dateTimeProvider) => Frequency switch
+    {
+        Frequency.Realtime => dateTimeProvider.UtcNow.AddMinutes(-1),
+        Frequency.Daily => DueBaseDate?.AddDays(1),
+        Frequency.Weekly => DueBaseDate?.AddDays(7),
+        _ => throw new NotImplementedException(),
+    };
+
+    public bool IsDue(IDateTimeProvider dateTimeProvider) => GetNextDueDate(dateTimeProvider) < dateTimeProvider.UtcNow;
+
+    public bool IsInitialised() => LastThumbprint is not null;
 
     [IgnoreDataMember]
     public SubscriptionType SubscriptionType => CabId.HasValue ? SubscriptionType.Cab : SubscriptionType.Search;

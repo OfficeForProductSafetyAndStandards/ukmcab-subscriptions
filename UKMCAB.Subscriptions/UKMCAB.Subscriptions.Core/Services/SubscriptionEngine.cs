@@ -1,127 +1,282 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Azure.Storage.Blobs;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Data;
-using UKMCAB.Subscriptions.Core.Integration.CabUpdates;
+using UKMCAB.Subscriptions.Core.Data.Models;
+using UKMCAB.Subscriptions.Core.Domain;
+using UKMCAB.Subscriptions.Core.Integration.CabService;
 using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
-using UKMCAB.Subscriptions.Core.Integration.Search;
+using static UKMCAB.Subscriptions.Core.Services.SubscriptionService;
 
 namespace UKMCAB.Subscriptions.Core.Services;
 
 public interface ISubscriptionEngine
 {
-    /// <summary>
-    /// This method processes and potentially notifies subscribers on search result changes.
-    /// This method will be called once per hour. 
-    /// 
-    /// For each search subscription, 
-    ///     get the latest search results.  
-    ///     Projects a list of CAB ids ordered by id, creates an MD5 hash of those ids.
-    ///     Checks storage to find out whether the last MD5 hash from the previous invocation of this function is different.
-    ///     If the hashes are different (or if the prior one is null) then summarise the differences in text form.
-    ///     Persist the email notification for later sending.
-    ///     Records the current hash to storage    
-    ///     Move to the next subscription until all are processed.
-    /// </summary>
-    /// <returns></returns>
-    Task ProcessSearchSubscribersAsync(CancellationToken cancellationToken);
-
-    /// <summary>
-    /// This method polls an Azure Storage Queue for messages about CAB updates.
-    /// It will run continually until cancellationToken.IsCancellationRequested==true.
-    /// For each CAB update, and each subscriber, it will persist the email to be sent at a later.  
-    /// If there's an existing buffered email relating to this subscription/cab, then update
-    /// the buffered email to represent the latest change state.
-    /// </summary>
-    /// <returns></returns>
-    Task ProcessCabSubscribersAsync(CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Sends buffered/persisted email notifications once they reach their due-date based on the frequency of the email subscription.
-    /// This method will be called continuously until cancellationToken.IsCancellationRequested==true.
-    /// Each each email send, the fact the email has been sent should be recorded straight away, to prevent re-send.
-    /// </summary>
-    /// <param name="cancellationToken"></param>
-    /// <returns></returns>
-
-    Task ProcessSendEmailNotificationsAsync(CancellationToken cancellationToken);
+    Task<SubscriptionEngine.ResultAccumulator> ProcessAsync(CancellationToken cancellationToken);
 }
 
-public interface ISubscriptionEngineTestable
-{
-    Task<bool> ProcessSingleCabUpdateAsync();
-}
 
-public class SubscriptionEngine : ISubscriptionEngine, ISubscriptionEngineTestable
+public class SubscriptionEngine : ISubscriptionEngine, IClearable
 {
     private readonly SubscriptionServicesCoreOptions _options;
     private readonly ILogger<SubscriptionEngine> _logger;
-    private readonly ICabUpdatesReceiver _cabUpdatesReceiver;
-    private readonly ICabSearchService _searchService;
-    private readonly ISubscriptionRepository _repository;
-    private readonly IOutboxRepository _outboxRepository;
     private readonly IOutboundEmailSender _outboundEmailSender;
-    private readonly ISentNotificationRepository _sentNotificationRepository;
+    private readonly IRepositories _repositories;
+    private readonly IDateTimeProvider _dateTimeProvider;
+    private readonly ICabService _cabService;
+    private readonly BlobContainerClient _blobs;
 
-    internal SubscriptionEngine(SubscriptionServicesCoreOptions options, ILogger<SubscriptionEngine> logger, ICabUpdatesReceiver cabUpdatesReceiver, ICabSearchService searchService, ISubscriptionRepository repository, 
-        IOutboxRepository outboxRepository, IOutboundEmailSender outboundEmailSender, ISentNotificationRepository sentNotificationRepository)
+    public SubscriptionEngine(SubscriptionServicesCoreOptions options, ILogger<SubscriptionEngine> logger, 
+        IOutboundEmailSender outboundEmailSender, IRepositories repositories, IDateTimeProvider dateTimeProvider, ICabService cabService)
     {
         _options = options;
         _logger = logger;
-        _cabUpdatesReceiver = cabUpdatesReceiver;
-        _searchService = searchService;
-        _repository = repository;
-        _outboxRepository = outboxRepository;
         _outboundEmailSender = outboundEmailSender;
-        _sentNotificationRepository = sentNotificationRepository;
+        _repositories = repositories;
+        _dateTimeProvider = dateTimeProvider;
+        _cabService = cabService;
+        _blobs = new BlobContainerClient(_options.DataConnectionString, "snapshots");
+        _options.EmailTemplates.Validate();
+    }
+
+    public enum Result { Notified, Initialised, NoChange, NotDue, Error }
+
+    public class ResultAccumulator
+    {
+        public int Notified { get; set; }
+        public int Initialised { get; set; }
+        public int NoChange { get; set; }
+        public int NotDue { get; set; }
+        public int Errors { get; set; }
+
+        public int Accept(Result result) => result switch
+        {
+            Result.Initialised => ++Initialised,
+            Result.Notified => ++Notified,
+            Result.NoChange => ++NoChange,
+            Result.NotDue => ++NotDue,
+            Result.Error => ++Errors,
+            _ => throw new NotImplementedException(),
+        };
     }
 
     /// <inheritdoc />
-    public async Task ProcessCabSubscribersAsync(CancellationToken cancellationToken)
+    public async Task<ResultAccumulator> ProcessAsync(CancellationToken cancellationToken)
     {
-        while(!cancellationToken.IsCancellationRequested)
+        var rv = new ResultAccumulator();
+
+        await EnsureBlobContainerAsync();
+
+        var pages = _repositories.Subscriptions.GetAllAsync(take:10);
+        await foreach(var page in pages)
         {
-            if(!await ProcessSingleCabUpdateAsync())
+            foreach(var subscription in page.Values)
             {
-                await Task.Delay(10_000, cancellationToken);
+                await ProcessSubscriptionAsync(rv, subscription);
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                break;
             }
         }
+
+        return rv;
     }
 
-    public async Task<bool> ProcessSingleCabUpdateAsync()
+    private async Task ProcessSubscriptionAsync(ResultAccumulator rv, SubscriptionEntity subscription)
     {
-        var update = await _cabUpdatesReceiver.GetCabUpdateMessageAsync();
-        if (update != null)
+        if (subscription.IsInitialised())
         {
-            // todo: create notification and persist them
-            // ...
-
-            await _cabUpdatesReceiver.MarkAsProcessedAsync(update);
-            return true;
+            if (subscription.IsDue(_dateTimeProvider))
+            {
+                rv.Accept(await HandleDueSubscription(subscription));
+            }
+            else
+            {
+                rv.Accept(Result.NotDue);
+            }
         }
         else
         {
-            return false;
+            await InitialiseSubscriptionAsync(subscription);
+            rv.Accept(Result.Initialised);
         }
     }
 
-    /// <inheritdoc />
-    public Task ProcessSearchSubscribersAsync(CancellationToken cancellationToken)
+    private Task InitialiseSubscriptionAsync(SubscriptionEntity subscription)=> subscription.SubscriptionType == SubscriptionType.Search 
+        ? InitialiseSearchSubscriptionAsync(subscription) 
+        : InitialiseCabSubscriptionAsync(subscription);
+
+    private Task<Result> HandleDueSubscription(SubscriptionEntity subscription) => subscription.SubscriptionType == SubscriptionType.Search
+        ? HandleDueSearchSubscription(subscription)
+        : HandleDueCabSubscription(subscription);
+
+    private async Task InitialiseSearchSubscriptionAsync(SubscriptionEntity subscription)
     {
-        // for each subscription
-        //  perform a search via _searchService
-        //  record the list of _changes_ (added/removed cabs) since EITHER the baseline search (when they first subscribed) OR the search results from the LAST_TIME they were notified
-        //  persist a model of changes (in azure table storage) to notify the subscriber ()  Overwrite if necessary.  Defer any email-send operation until ProcessSendEmailNotificationsAsync.
+        Guard.IsTrue(subscription.SubscriptionType == SubscriptionType.Search, $"The subscription type should be '{SubscriptionType.Search}'");
+        Guard.IsTrue(subscription.LastThumbprint is null, "The subscription does not need to be initialised.");
 
+        var data = await GetSearchResultDataAsync(subscription.SearchQueryString);
 
-        throw new NotImplementedException();
+        subscription.LastThumbprint = data.Thumbprint;
+        subscription.BlobName = subscription.CreateBlobName();
+        subscription.DueBaseDate = _dateTimeProvider.UtcNow;
+        await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
+        await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
+        await _repositories.Telemetry.TrackAsync(subscription.GetKeys(), $"Initialised subscription with thumbprint '{subscription.LastThumbprint}' and blob '{subscription.BlobName}'").ConfigureAwait(false);   
     }
 
-    /// <inheritdoc />
-    public Task ProcessSendEmailNotificationsAsync(CancellationToken cancellationToken)
+    private async Task InitialiseCabSubscriptionAsync(SubscriptionEntity subscription)
     {
-        // for each pending notification
-        //  check whether it's due based on the frequency of the subscription
+        Guard.IsTrue(subscription.SubscriptionType == SubscriptionType.Cab, $"The subscription type should be '{SubscriptionType.Cab}'");
+        Guard.IsTrue(subscription.LastThumbprint is null, "The subscription does not need to be initialised.");
         
+        var data = await GetCabDataAsync(subscription.CabId ?? throw new Exception("Cab ID is null"));
 
-        throw new NotImplementedException();
+        subscription.LastThumbprint = data.Thumbprint;
+        subscription.BlobName = subscription.CreateBlobName();
+        subscription.DueBaseDate = _dateTimeProvider.UtcNow;
+        await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
+        await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
+        await _repositories.Telemetry.TrackAsync(subscription.GetKeys(), $"Initialised subscription with thumbprint '{subscription.LastThumbprint}'").ConfigureAwait(false);
+    }
+
+    private async Task<Result> HandleDueSearchSubscription(SubscriptionEntity subscription)
+    {
+        var rv = Result.NoChange;
+        Guard.IsTrue(subscription.SubscriptionType == SubscriptionType.Search, $"The subscription type should be '{SubscriptionType.Search}'");
+        Guard.IsTrue(subscription.LastThumbprint is not null, "The subscription needs to be initialised.");
+
+        var data = await GetSearchResultDataAsync(subscription.SearchQueryString);
+        
+        if (subscription.LastThumbprint.DoesNotEqual(data.Thumbprint, StringComparison.Ordinal)) // search results have changed.
+        {
+            var old = new
+            {
+                subscription.LastThumbprint,
+                subscription.BlobName,
+            };
+
+            if (subscription.BlobName != null)
+            {
+                await _blobs.DeleteBlobIfExistsAsync(subscription.BlobName).ConfigureAwait(false);
+            }
+            subscription.LastThumbprint = data.Thumbprint;
+            subscription.DueBaseDate = _dateTimeProvider.UtcNow;
+            await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
+
+            await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),
+                $"Notified subscription: Search updated. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
+
+            try
+            {
+                await _outboundEmailSender.SendAsync(_options.EmailTemplates.SearchUpdated, subscription.EmailAddress, new Dictionary<string, dynamic> { ["link"] = "" }).ConfigureAwait(false);
+                await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
+                await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),
+                    $"Notified subscription: Search updated. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
+                rv = Result.Notified;
+            }
+            catch (Exception ex)
+            {
+                await _repositories.Telemetry.TrackAsync(subscription.GetKeys(), $"Failed to notify change on subscription; error: {ex}").ConfigureAwait(false);
+                rv = Result.Error;
+            }
+
+        }
+        return rv;
+    }
+
+
+    private async Task<Result> HandleDueCabSubscription(SubscriptionEntity subscription)
+    {
+        var rv = Result.NoChange;
+        Guard.IsTrue(subscription.SubscriptionType == SubscriptionType.Cab, $"The subscription type should be '{SubscriptionType.Cab}'");
+        Guard.IsTrue(subscription.LastThumbprint is not null, "The subscription needs to be initialised.");
+
+        var data = await GetCabDataAsync(subscription.CabId ?? throw new Exception("Cab ID is null"));
+
+        if (subscription.LastThumbprint.DoesNotEqual(data.Thumbprint, StringComparison.Ordinal)) // search results have changed.
+        {
+            var old = new
+            {
+                subscription.LastThumbprint,
+                subscription.BlobName,
+            };
+
+            if (subscription.BlobName != null)
+            {
+                await _blobs.DeleteBlobIfExistsAsync(subscription.BlobName).ConfigureAwait(false);
+            }
+
+            subscription.LastThumbprint = data.Thumbprint;
+            subscription.DueBaseDate = _dateTimeProvider.UtcNow;
+
+            await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
+
+            await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),
+                $"Notified subscription: CAB updated. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
+
+            try
+            {
+                await _outboundEmailSender.SendAsync(_options.EmailTemplates.CabUpdated, subscription.EmailAddress, new Dictionary<string, dynamic> { ["link"] = "" }).ConfigureAwait(false);
+                await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
+                await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),
+                    $"Notified subscription: Search updated. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
+                rv = Result.Notified;
+            }
+            catch (Exception ex)
+            {
+                await _repositories.Telemetry.TrackAsync(subscription.GetKeys(), $"Failed to notify change on subscription; error: {ex}").ConfigureAwait(false);
+                rv = Result.Error;
+            }
+
+        }
+        return rv;
+    }
+
+    record SearchResultData(string Thumbprint, string Json);
+
+    private async Task<SearchResultData> GetSearchResultDataAsync(string? searchQueryString)
+    {
+        var results = (await _cabService.SearchAsync(searchQueryString)) ?? throw new Exception("Search returned null");
+        results = results with { Results = results.Results.OrderBy(x => x.CabId).ToList() };
+        var json = JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = false }) ?? throw new Exception("Serializing search results returned null");
+        var thumbprint = json.Md5() ?? throw new Exception("MD5 hashing returned null");
+        return new(thumbprint, json);
+    }
+
+    private async Task<SearchResultData> GetCabDataAsync(Guid id)
+    {
+        var cab = (await _cabService.GetAsync(id)) ?? throw new Exception("Cab not found for id " + id);
+        var json = JsonSerializer.Serialize(cab, new JsonSerializerOptions { WriteIndented = false }) ?? throw new Exception("Serializing cab returned null");
+        var thumbprint = json.Md5() ?? throw new Exception("MD5 hashing returned null");
+        return new(thumbprint, json);
+    }
+
+    private async Task EnsureBlobContainerAsync()
+    {
+        if (Memory.Set(GetType(), nameof(EnsureBlobContainerAsync)))
+        {
+            await _blobs.CreateIfNotExistsAsync();
+        }
+    }
+
+    async Task IClearable.ClearDataAsync()
+    {
+        var pages = _blobs.GetBlobsAsync().AsPages(pageSizeHint: 10);
+        await foreach (var page in pages)
+        {
+            foreach (var blob in page.Values)
+            {
+                await _blobs.DeleteBlobIfExistsAsync(blob.Name).ConfigureAwait(false);
+            }
+        }
     }
 }

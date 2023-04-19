@@ -68,6 +68,8 @@ public static class ExtensionMethods
         else return text.Trim();
     }
 
+    public static string EnsureStartsWith(this string text, string prepender) => text.StartsWith(prepender) ? text : string.Concat(prepender, text);
+
     public static bool Contains(this string? source, string? text, StringComparison stringComparison) => source?.IndexOf(text, stringComparison) > -1;
 
     public static bool DoesContain(this string? source, string? text, StringComparison stringComparison = StringComparison.OrdinalIgnoreCase) => (source ?? string.Empty).Contains(text, stringComparison);

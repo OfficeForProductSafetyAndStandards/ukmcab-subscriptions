@@ -8,31 +8,37 @@ using static UKMCAB.Subscriptions.Core.Services.SubscriptionService;
 
 namespace UKMCAB.Subscriptions.Test;
 
-public class SearchSubscriptionTests
+public class SubscriptionServiceTests
 {
     private FakeDateTimeProvider _datetime = new();
-    private FakeCabSearchService _searchService;
-    private FakeCabUpdatesReceiver _cabUpdatesReceiver;
     private FakeOutboundEmailSender _outboundEmailSender = new();
-    private SubscriptionServicesCoreOptions _options = new (){  SearchQueryStringPagingKeys = new[] { "page", "pagesize" } };
+    public static SubscriptionServicesCoreOptions CoreOptions { get; } = new ()
+    {  
+        SearchQueryStringRemoveKeys = new[] { "page", "pagesize", "sort" }, 
+        EmailTemplates = new EmailTemplates 
+        { 
+            ConfirmCabSubscription = "1",
+            ConfirmSearchSubscription = "2",
+            ConfirmUpdateEmailAddress = "3",
+            CabUpdated = "4",
+            SearchUpdated = "5",
+        } 
+    };
+    
     private ServiceProvider _services;
     private const string _fakeConfirmationUrl = "http://test.com/?payload=@payload";
 
     [OneTimeSetUp]
     public void SetupOnce()
     {
-        Bootstrap.Configuration.Bind(_options);
+        Bootstrap.Configuration.Bind(CoreOptions);
 
-        _searchService = new FakeCabSearchService();
-        _cabUpdatesReceiver = new FakeCabUpdatesReceiver();
-
-        var services = new ServiceCollection().AddLogging().AddSubscriptionServices(_options, x =>
+        var services = new ServiceCollection().AddLogging().AddSubscriptionServices(CoreOptions, x =>
         {
             x.DateTimeProvider = _datetime;
             x.OutboundEmailSender = _outboundEmailSender;
+            x.CabService = new FakeCabService();
         });
-
-        services.AddSingleton(x => (ISubscriptionEngineTestable) x.GetRequiredService<ISubscriptionEngine>());
 
         _services = services.BuildServiceProvider();
     }
@@ -40,8 +46,8 @@ public class SearchSubscriptionTests
     [SetUp]
     public async Task SetupAsync()
     {
-        var ds = _services.GetRequiredService<ISubscriptionService>() as ISubscriptionDataService ?? throw new Exception("hold on a minute, cannot cast to ISubscriptionDataService!");
-        await ds.DeleteAllAsync("yes_i_really_want_to_delete_everything");
+        var clearable = _services.GetRequiredService<ISubscriptionService>() as IClearable ?? throw new Exception("hold on a minute, cannot cast to IClearable!");
+        await clearable.ClearDataAsync();
     }
 
     [TestCase("?&&&&name=test&&&")]

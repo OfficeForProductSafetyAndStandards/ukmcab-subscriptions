@@ -10,6 +10,6 @@ public static class SearchQueryString
 {
     public static string Process(string? queryString, SubscriptionServicesCoreOptions options)
     {
-        return QueryString2.Parse(queryString).Remove(options.SearchQueryStringPagingKeys).ToString();
+        return QueryString2.Parse(queryString).Remove(options.SearchQueryStringRemoveKeys).ToString();
     }
 }

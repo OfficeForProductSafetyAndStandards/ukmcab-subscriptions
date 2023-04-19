@@ -1,4 +1,4 @@
-﻿namespace UKMCAB.Subscriptions.Core.Domain;
+﻿namespace UKMCAB.Subscriptions.Core.Data;
 public class Keys
 {
     public string? PartitionKey { get; set; }

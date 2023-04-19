@@ -1,7 +1,4 @@
-﻿using Azure.Core;
-using Microsoft.Extensions.Logging;
-using System.Reflection.Metadata.Ecma335;
-using System.Security.Cryptography.X509Certificates;
+﻿using Microsoft.Extensions.Logging;
 using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Common.Security;
 using UKMCAB.Subscriptions.Core.Common.Security.Tokens;
@@ -130,17 +127,7 @@ public interface ISubscriptionService
     Task<ListSubscriptionsResult> ListSubscriptionsAsync(EmailAddress emailAddress, string? continuationToken = null, int? take = null);
 }
 
-public interface ISubscriptionDataService
-{
-    /// <summary>
-    /// Deletes all data
-    /// </summary>
-    /// <param name="code"></param>
-    /// <returns></returns>
-    Task DeleteAllAsync(string code);
-}
-
-public class SubscriptionService : ISubscriptionService, ISubscriptionDataService
+public class SubscriptionService : ISubscriptionService, IClearable
 {
     private readonly SubscriptionServicesCoreOptions _options;
     private readonly ILogger<SubscriptionService> _logger;
@@ -157,6 +144,7 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
         _repositories = repositories;
         _outboundEmailSender = outboundEmailSender;
         _secureTokenProcessor = secureTokenProcessor;
+        _options.EmailTemplates.Validate();
     }
 
     public async Task<bool> IsSubscribedToSearchAsync(EmailAddress emailAddress, string? searchQueryString) 
@@ -179,8 +167,8 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
         if (validation == ValidationResult.Success)
         {
             var createConfirmUrlResult = CreateConfirmUrl(absoluteConfirmationUrlFormat, nameof(ConfirmSearchSubscriptionAsync), request);
-            await _outboundEmailSender.SendAsync(_options.EmailTemplateConfirmSearchSubscription, request.EmailAddress, new Dictionary<string, dynamic> { ["link"] = createConfirmUrlResult.Url });
-            await _repositories.Telemetry.TrackAsync(request.EmailAddress, $"Requested search subscription");
+            await _outboundEmailSender.SendAsync(_options.EmailTemplates.ConfirmSearchSubscription, request.EmailAddress, new Dictionary<string, dynamic> { ["link"] = createConfirmUrlResult.Url });
+            await _repositories.Telemetry.TrackByEmailAddressAsync(request.EmailAddress, $"Requested search subscription");
             return new(validation, createConfirmUrlResult.Token);
         }
 
@@ -195,8 +183,8 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
         if (validation == ValidationResult.Success)
         {
             var createConfirmUrlResult = CreateConfirmUrl(absoluteConfirmationUrlFormat, nameof(ConfirmSearchSubscriptionAsync), request);
-            await _outboundEmailSender.SendAsync(_options.EmailTemplateConfirmCabSubscription, request.EmailAddress, new Dictionary<string, dynamic> { ["link"] = createConfirmUrlResult.Url });
-            await _repositories.Telemetry.TrackAsync(request.EmailAddress, $"Requested cab subscription (cabid={request.CabId})");
+            await _outboundEmailSender.SendAsync(_options.EmailTemplates.ConfirmCabSubscription, request.EmailAddress, new Dictionary<string, dynamic> { ["link"] = createConfirmUrlResult.Url });
+            await _repositories.Telemetry.TrackByEmailAddressAsync(request.EmailAddress, $"Requested cab subscription (cabid={request.CabId})");
             return new(validation, createConfirmUrlResult.Token);
         }
 
@@ -225,7 +213,7 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
             };
 
             await _repositories.Subscriptions.UpsertAsync(e).ConfigureAwait(false);
-            await _repositories.Telemetry.TrackAsync(e.EmailAddress, $"Confirmed search subscription ({key})");
+            await _repositories.Telemetry.TrackByEmailAddressAsync(e.EmailAddress, $"Confirmed search subscription ({key})");
 
             return new ConfirmSubscriptionResult(key, validation);
         }
@@ -253,7 +241,7 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
             };
 
             await _repositories.Subscriptions.UpsertAsync(e).ConfigureAwait(false);
-            await _repositories.Telemetry.TrackAsync(e.EmailAddress, $"Confirmed cab subscription ({key})");
+            await _repositories.Telemetry.TrackByEmailAddressAsync(e.EmailAddress, $"Confirmed cab subscription ({key})");
 
             return new ConfirmSubscriptionResult(key, validation);
         }
@@ -273,9 +261,9 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
         await ValidateRequestAsync(options, sub);
 
         var createConfirmUrlResult = CreateConfirmUrl(absoluteConfirmationUrlFormat, nameof(ConfirmUpdateEmailAddressAsync), options);
-        await _outboundEmailSender.SendAsync(_options.EmailTemplateUpdateEmailAddress, options.EmailAddress, new Dictionary<string, dynamic> { ["link"] = createConfirmUrlResult.Url });
-        await _repositories.Telemetry.TrackAsync(options.EmailAddress, $"Requested update email address for subscription ({options.SubscriptionId})");
-        await _repositories.Telemetry.TrackAsync(sub.EmailAddress, $"Requested update email address for subscription ({options.SubscriptionId})");
+        await _outboundEmailSender.SendAsync(_options.EmailTemplates.ConfirmUpdateEmailAddress, options.EmailAddress, new Dictionary<string, dynamic> { ["link"] = createConfirmUrlResult.Url });
+        await _repositories.Telemetry.TrackByEmailAddressAsync(options.EmailAddress, $"Requested update email address for subscription ({options.SubscriptionId})");
+        await _repositories.Telemetry.TrackByEmailAddressAsync(sub.EmailAddress, $"Requested update email address for subscription ({options.SubscriptionId})");
 
         return createConfirmUrlResult.Token;
     }
@@ -303,8 +291,8 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
         await _repositories.Subscriptions.UpsertAsync(sub);
         await _repositories.Subscriptions.DeleteAsync(old.Key);
 
-        await _repositories.Telemetry.TrackAsync(options.EmailAddress, $"Confirmed updated email address to '{options.EmailAddress}' on subscription (old: {old.Key}, new: {key})");
-        await _repositories.Telemetry.TrackAsync(old.EmailAddress, $"Confirmed updated email address from '{old.EmailAddress}' to '{options.EmailAddress}' on subscription (old: {old.Key}, new: {key})");
+        await _repositories.Telemetry.TrackByEmailAddressAsync(options.EmailAddress, $"Confirmed updated email address to '{options.EmailAddress}' on subscription (old: {old.Key}, new: {key})");
+        await _repositories.Telemetry.TrackByEmailAddressAsync(old.EmailAddress, $"Confirmed updated email address from '{old.EmailAddress}' to '{options.EmailAddress}' on subscription (old: {old.Key}, new: {key})");
 
         return key;
     }
@@ -326,7 +314,7 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
         if (sub != null)
         {
             await _repositories.Subscriptions.DeleteAsync(key).ConfigureAwait(false);
-            await _repositories.Telemetry.TrackAsync(sub.EmailAddress ?? throw new InvalidOperationException("EmailAddress cannot be null"), $"Unsubscribed (deleted) search subscription ({key})");
+            await _repositories.Telemetry.TrackByEmailAddressAsync(sub.EmailAddress ?? throw new InvalidOperationException("EmailAddress cannot be null"), $"Unsubscribed (deleted) search subscription ({key})");
             return true;
         }
         else
@@ -351,7 +339,7 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
             page = await (_repositories.Subscriptions.GetAllAsync(SubscriptionKey.CreatePartitionKey(emailAddress))).FirstAsync();
         }
 
-        await _repositories.Telemetry.TrackAsync(emailAddress, "Unsubscribed all").ConfigureAwait(false);
+        await _repositories.Telemetry.TrackByEmailAddressAsync(emailAddress, "Unsubscribed all").ConfigureAwait(false);
         return count;
     }
 
@@ -386,7 +374,7 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
         if (!await _repositories.Blocked.IsBlockedAsync(emailAddress))
         {
             await _repositories.Blocked.BlockAsync(emailAddress);
-            await _repositories.Telemetry.TrackAsync(emailAddress, "Blocked");
+            await _repositories.Telemetry.TrackByEmailAddressAsync(emailAddress, "Blocked");
             return true;
         }
         else
@@ -401,27 +389,12 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
         if (await _repositories.Blocked.IsBlockedAsync(emailAddress))
         {
             await _repositories.Blocked.UnblockAsync(emailAddress);
-            await _repositories.Telemetry.TrackAsync(emailAddress, "Unblocked");
+            await _repositories.Telemetry.TrackByEmailAddressAsync(emailAddress, "Unblocked");
             return true;
         }
         else
         {
             return false;
-        }
-    }
-
-    /// <inheritdoc />
-    async Task ISubscriptionDataService.DeleteAllAsync(string code)
-    {
-        if (code == "yes_i_really_want_to_delete_everything")
-        {
-            await _repositories.Blocked.DeleteAllAsync().ConfigureAwait(false);
-            await _repositories.Subscriptions.DeleteAllAsync().ConfigureAwait(false);
-            await _repositories.Telemetry.DeleteAllAsync().ConfigureAwait(false);
-        }
-        else
-        {
-            throw new Exception("code was incorrect");
         }
     }
 
@@ -483,5 +456,12 @@ public class SubscriptionService : ISubscriptionService, ISubscriptionDataServic
         {
             throw new EmailAddressAlreadySubscribedToTopicException("Already subscribed to this topic under the updated email address");
         }
+    }
+
+    async Task IClearable.ClearDataAsync()
+    {
+        await _repositories.Blocked.DeleteAllAsync().ConfigureAwait(false);
+        await _repositories.Subscriptions.DeleteAllAsync().ConfigureAwait(false);
+        await _repositories.Telemetry.DeleteAllAsync().ConfigureAwait(false);
     }
 }

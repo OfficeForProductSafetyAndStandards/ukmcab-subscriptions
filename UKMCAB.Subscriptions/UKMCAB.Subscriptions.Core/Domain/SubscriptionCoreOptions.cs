@@ -1,16 +1,16 @@
-﻿
+﻿using UKMCAB.Subscriptions.Core.Integration.CabService;
+
+namespace UKMCAB.Subscriptions.Core.Domain;
+
 /// <summary>
 /// The core options that need to be configured for this package to function
 /// </summary>
 public class SubscriptionServicesCoreOptions
 {
-    public string DataConnectionString { get; set; }
-    public string BaseUrl { get; set; }
-    public string EmailTemplateConfirmSearchSubscription { get; set; }
-    public string EmailTemplateConfirmCabSubscription { get; set; }
-    public string EmailTemplateUpdateEmailAddress { get; set; }
-    public string SearchApiUrl { get; set; }
-    public string GovUkNotifyApiKey { get; set; }
+    public string? DataConnectionString { get; set; }
+    public EmailTemplates EmailTemplates { get; set; } = new EmailTemplates();
+    public string? GovUkNotifyApiKey { get; set; }
+    public CabApiOptions? CabApiOptions { get; set; }
 
     /// <summary>
     /// The AES encryption key for secure token processing.
@@ -18,13 +18,14 @@ public class SubscriptionServicesCoreOptions
     /// <remarks>
     /// If you don't have one, use `UKMCAB.Subscriptions.Core.Common.Security.Tokens.KeyIV.GenerateKey()` and put somewhere safe
     /// </remarks>
-    public string EncryptionKey { get; set; }
+    public string? EncryptionKey { get; set; }
 
     /// <summary>
-    ///     The query string keys that contain paging data, such as page size and page index, or skip and take keys.
+    ///     The query string keys that contain paging/sorting data, such as page size and page index, sort, or skip and take keys.
+    ///     Defaults to: "pagenumber", "pagesize", "sort" 
     /// </summary>
     /// <remarks>
-    ///     These keys will be removed from search query string 
+    ///     These keys will be removed from search query string when a user subscribes to a search.
     /// </remarks>
-    public string[] SearchQueryStringPagingKeys { get; set; } = Array.Empty<string>();
+    public string[] SearchQueryStringRemoveKeys { get; set; } = new[] { "pagenumber", "pagesize", "sort" };
 }
