@@ -20,6 +20,11 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
+    - run: |
+          git fetch --unshallow --tags
+          echo $?
+          git tag --list
+    
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
