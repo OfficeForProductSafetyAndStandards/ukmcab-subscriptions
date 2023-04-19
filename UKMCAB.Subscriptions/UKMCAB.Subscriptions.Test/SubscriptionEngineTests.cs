@@ -217,6 +217,85 @@ public class SubscriptionEngineTests
         }
     }
 
+
+
+
+    [Test]
+    public async Task ProcessCabSubscribers_RealtimeFrequency()
+    {
+        _datetime.UtcNow = new DateTime(1980, 7, 1);
+
+        const string e = "john@cab.com";
+        var cabId = Guid.NewGuid();
+
+        var requestSubscriptionResult = await _subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Realtime), _fakeConfirmationUrl);
+        Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
+
+        var confirmSubscriptionResult = await _subs.ConfirmCabSubscriptionAsync(requestSubscriptionResult.Token ?? throw new Exception("Token should not be null"));
+        Assert.That(confirmSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
+        Assert.That(confirmSubscriptionResult.Id, Is.Not.Null);
+        _outboundEmailSender.Requests.Clear();
+
+
+        // seed results
+        _cabService.Inject(new CabApiModel { CABId = cabId.ToString(), Name = "Bob" });
+        var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(0));
+            Assert.That(result.Notified, Is.EqualTo(0));
+            Assert.That(result.Initialised, Is.EqualTo(1));
+            Assert.That(result.Errors, Is.EqualTo(0));
+            Assert.That(result.NoChange, Is.EqualTo(0));
+            Assert.That(result.NotDue, Is.EqualTo(0));
+        });
+
+        // process again (nothing has changed)
+        result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(0));
+            Assert.That(result.Notified, Is.EqualTo(0));
+            Assert.That(result.Initialised, Is.EqualTo(0));
+            Assert.That(result.Errors, Is.EqualTo(0));
+            Assert.That(result.NoChange, Is.EqualTo(1));
+            Assert.That(result.NotDue, Is.EqualTo(0));
+        });
+
+        // change results
+        _cabService.Inject(new CabApiModel { CABId = cabId.ToString(), Name = "Bob2" });
+        result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(1), "An email notification should have been sent");
+            Assert.That(result.Notified, Is.EqualTo(1));
+            Assert.That(result.Initialised, Is.EqualTo(0));
+            Assert.That(result.Errors, Is.EqualTo(0));
+            Assert.That(result.NoChange, Is.EqualTo(0));
+            Assert.That(result.NotDue, Is.EqualTo(0));
+        });
+        _outboundEmailSender.Requests.Clear();
+
+
+        // process again (nothing has changed)
+        result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(0));
+            Assert.That(result.Notified, Is.EqualTo(0));
+            Assert.That(result.Initialised, Is.EqualTo(0));
+            Assert.That(result.Errors, Is.EqualTo(0));
+            Assert.That(result.NoChange, Is.EqualTo(1));
+            Assert.That(result.NotDue, Is.EqualTo(0));
+        });
+    }
+
+
+
+
+
+
+
     private async Task SubscribeToSearchAsync(string email, string query, Frequency frequency)
     {
         var req = new SearchSubscriptionRequest(email, query, frequency);
