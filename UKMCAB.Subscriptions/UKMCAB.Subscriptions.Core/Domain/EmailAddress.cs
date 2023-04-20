@@ -8,7 +8,7 @@ public partial class EmailAddress
 {
     private readonly string _emailAddress;
 
-    [System.Text.Json.Serialization.JsonConstructor]
+    [JsonConstructor]
     public EmailAddress(string emailAddress)
     {
         emailAddress = Cleanse(emailAddress) ?? throw new ArgumentException("The email address supplied is empty/null", nameof(emailAddress));
@@ -29,15 +29,20 @@ public partial class EmailAddress
 
     public static bool IsValidEmail(string? text)
     {
-        text = Cleanse(text);
-        if (string.IsNullOrWhiteSpace(text)) return false;
-        return EmailRegExp().IsMatch(text);
+        text = text?.Clean();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+        else
+        {
+            return Regex.IsMatch(text, @"\A\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,24}\b\Z", RegexOptions.IgnoreCase);
+        }
     }
 
     public override string ToString() => _emailAddress;
 
-    [GeneratedRegex("\\A\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,24}\\b\\Z", RegexOptions.IgnoreCase, "en-GB")]
-    private static partial Regex EmailRegExp();
+
 
     public static implicit operator string(EmailAddress d) => d._emailAddress;
 
