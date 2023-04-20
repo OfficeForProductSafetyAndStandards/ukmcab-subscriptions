@@ -5,7 +5,7 @@ namespace UKMCAB.Subscriptions.Core.Integration.CabService;
 
 public interface ICabService : IDisposable
 {
-    Task<CabApiModel?> GetAsync(Guid id);
+    Task<SubscriptionsCoreCabModel?> GetAsync(Guid id);
 
     /// <summary>
     /// Searches for CABs
@@ -40,7 +40,7 @@ public class CabService : ICabService
         }
     }
 
-    public record SearchResults(int Total, List<CabSearchApiModel> Results);
+    public record SearchResults(int Total, List<SubscriptionsCoreCabSearchResultModel> Results);
 
     public async Task<SearchResults> SearchAsync(string? query)
     {
@@ -48,11 +48,11 @@ public class CabService : ICabService
         var response = await _client.GetAsync(uri);
         response.EnsureSuccessStatusCode();
         var count = response.Headers.GetValues("x-count").FirstOrDefault().ToInteger().GetValueOrDefault();
-        var results = await response.Content.ReadFromJsonAsync<List<CabSearchApiModel>>() ?? throw new Exception("Search results deserialised to null");
+        var results = await response.Content.ReadFromJsonAsync<List<SubscriptionsCoreCabSearchResultModel>>() ?? throw new Exception("Search results deserialised to null");
         return new SearchResults(count, results);
     }
 
-    public async Task<CabApiModel?> GetAsync(Guid id)
+    public async Task<SubscriptionsCoreCabModel?> GetAsync(Guid id)
     {
         var uri = $"/__api/cab/{id}";
         var response = await _client.GetAsync(uri);
@@ -63,7 +63,7 @@ public class CabService : ICabService
         else
         {
             response.EnsureSuccessStatusCode();
-            var model = await response.Content.ReadFromJsonAsync<CabApiModel>() ?? throw new Exception("Search results deserialised to null");
+            var model = await response.Content.ReadFromJsonAsync<SubscriptionsCoreCabModel>() ?? throw new Exception("Search results deserialised to null");
             return model;
         }
     }

@@ -1,12 +1,6 @@
 ﻿namespace UKMCAB.Subscriptions.Core.Integration.CabService;
 
-public class CabSearchApiModel
-{
-    public Guid CabId { get; set; }
-    public string? Name { get; set; }
-}
-
-public class CabApiModel
+public class SubscriptionsCoreCabModel
 {
     public string? CABId { get; set; }
     public DateTime? PublishedDate { get; set; }
@@ -22,12 +16,5 @@ public class CabApiModel
     public string? BodyNumber { get; set; }
     public List<string>? BodyTypes { get; set; }
     public List<string>? LegislativeAreas { get; set; }
-    public List<CabApiFile>? ProductSchedules { get; set; }
-}
-
-public class CabApiFile
-{
-    public string? FileName { get; set; }
-    public string? BlobName { get; set; }
-    public DateTime? UploadDateTime { get; set; }
+    public List<SubscriptionsCoreCabFileModel>? ProductSchedules { get; set; }
 }
