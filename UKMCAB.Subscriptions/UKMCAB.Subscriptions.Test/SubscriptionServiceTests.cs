@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using UKMCAB.Subscriptions.Core;
 using UKMCAB.Subscriptions.Core.Domain;
+using UKMCAB.Subscriptions.Core.Integration.CabService;
+using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 using UKMCAB.Subscriptions.Core.Services;
 using UKMCAB.Subscriptions.Test.Fakes;
 using static UKMCAB.Subscriptions.Core.Services.SubscriptionService;
@@ -12,6 +14,8 @@ public class SubscriptionServiceTests
 {
     private FakeDateTimeProvider _datetime = new();
     private FakeOutboundEmailSender _outboundEmailSender = new();
+    private FakeCabService _cabService = new();
+
     public static SubscriptionServicesCoreOptions CoreOptions { get; } = new ()
     {  
         SearchQueryStringRemoveKeys = new[] { "page", "pagesize", "sort" }, 
@@ -33,13 +37,13 @@ public class SubscriptionServiceTests
     {
         Bootstrap.Configuration.Bind(CoreOptions);
 
-        var services = new ServiceCollection().AddLogging().AddSubscriptionServices(CoreOptions, x =>
-        {
-            x.DateTimeProviderFactory = x => _datetime;
-            x.OutboundEmailSenderFactory = x => _outboundEmailSender;
-            x.CabServiceFactory = x => new FakeCabService();
-        });
+        var services = new ServiceCollection().AddLogging();
+        services.AddSingleton<IDateTimeProvider>(_datetime);
+        services.AddSingleton<IOutboundEmailSender>(_outboundEmailSender);
+        services.AddSingleton<ICabService>(_cabService);
 
+        services.AddSubscriptionServices(CoreOptions);
+        
         _services = services.BuildServiceProvider();
     }
 

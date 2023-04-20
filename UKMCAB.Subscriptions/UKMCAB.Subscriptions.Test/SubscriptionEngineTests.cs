@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using UKMCAB.Subscriptions.Core;
 using UKMCAB.Subscriptions.Core.Domain;
 using UKMCAB.Subscriptions.Core.Integration.CabService;
+using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 using UKMCAB.Subscriptions.Core.Services;
 using UKMCAB.Subscriptions.Test.Fakes;
 using static UKMCAB.Subscriptions.Core.Services.SubscriptionService;
@@ -13,7 +15,7 @@ namespace UKMCAB.Subscriptions.Test;
 public class SubscriptionEngineTests
 {
     private FakeDateTimeProvider _datetime = new();
-    private FakeCabService _cabService;
+    private FakeCabService _cabService = new();
     private FakeOutboundEmailSender _outboundEmailSender = new();
     private ServiceProvider _services;
     private ISubscriptionService _subs;
@@ -25,14 +27,12 @@ public class SubscriptionEngineTests
     {
         Bootstrap.Configuration.Bind(SubscriptionServiceTests.CoreOptions);
 
-        _cabService = new FakeCabService();
+        var services = new ServiceCollection().AddLogging();
+        services.AddSingleton<IDateTimeProvider>(_datetime);
+        services.AddSingleton<IOutboundEmailSender>(_outboundEmailSender);
+        services.AddSingleton<ICabService>(_cabService);
 
-        var services = new ServiceCollection().AddLogging().AddSubscriptionServices(SubscriptionServiceTests.CoreOptions, x =>
-        {
-            x.DateTimeProviderFactory = x => _datetime;
-            x.OutboundEmailSenderFactory = x => _outboundEmailSender;
-            x.CabServiceFactory = x => _cabService;
-        });
+        services.AddSubscriptionServices(SubscriptionServiceTests.CoreOptions);
 
         _services = services.BuildServiceProvider();
         _subs = _services.GetRequiredService<ISubscriptionService>();
