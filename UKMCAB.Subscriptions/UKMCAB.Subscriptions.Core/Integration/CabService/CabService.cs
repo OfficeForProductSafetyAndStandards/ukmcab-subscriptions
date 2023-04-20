@@ -12,7 +12,7 @@ public interface ICabService : IDisposable
     /// </summary>
     /// <param name="query"></param>
     /// <returns></returns>
-    Task<CabService.SearchResults> SearchAsync(string? query);
+    Task<CabApiService.SearchResults> SearchAsync(string? query);
 }
 
 /// <summary>
@@ -23,11 +23,11 @@ public interface ICabService : IDisposable
 /// <see cref="Common.BasicAuthenticationHeaderValue"/>
 public record CabApiOptions(Uri BaseUri, AuthenticationHeaderValue? AuthorizationHeaderValue = null);
 
-public class CabService : ICabService
+public class CabApiService : ICabService
 {
     private readonly HttpClient _client;
 
-    public CabService(CabApiOptions options)
+    public CabApiService(CabApiOptions options)
     {
         _client = new HttpClient
         {
@@ -44,7 +44,7 @@ public class CabService : ICabService
 
     public async Task<SearchResults> SearchAsync(string? query)
     {
-        var uri = $"/__api/search{query?.EnsureStartsWith("?")}";
+        var uri = $"/__api/subscriptions/core/cab-search{query?.EnsureStartsWith("?")}";
         var response = await _client.GetAsync(uri);
         response.EnsureSuccessStatusCode();
         var count = response.Headers.GetValues("x-count").FirstOrDefault().ToInteger().GetValueOrDefault();
@@ -54,7 +54,7 @@ public class CabService : ICabService
 
     public async Task<SubscriptionsCoreCabModel?> GetAsync(Guid id)
     {
-        var uri = $"/__api/cab/{id}";
+        var uri = $"/__api/subscriptions/core/cab/{id}";
         var response = await _client.GetAsync(uri);
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {

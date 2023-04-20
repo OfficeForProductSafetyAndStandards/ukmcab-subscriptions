@@ -33,5 +33,5 @@ public class CabServiceTest
         });
     }
 
-    private static CabService CreateCabService() => new CabService(new CabApiOptions(new Uri("https://localhost:7061/"), BasicAuthenticationHeaderValue.Create("internal", "bob")));
+    private static CabApiService CreateCabService() => new CabApiService(new CabApiOptions(new Uri("https://localhost:7061/"), BasicAuthenticationHeaderValue.Create("internal", "bob")));
 }

@@ -35,9 +35,9 @@ public class SubscriptionServiceTests
 
         var services = new ServiceCollection().AddLogging().AddSubscriptionServices(CoreOptions, x =>
         {
-            x.DateTimeProvider = _datetime;
-            x.OutboundEmailSender = _outboundEmailSender;
-            x.CabService = new FakeCabService();
+            x.DateTimeProviderFactory = x => _datetime;
+            x.OutboundEmailSenderFactory = x => _outboundEmailSender;
+            x.CabServiceFactory = x => new FakeCabService();
         });
 
         _services = services.BuildServiceProvider();

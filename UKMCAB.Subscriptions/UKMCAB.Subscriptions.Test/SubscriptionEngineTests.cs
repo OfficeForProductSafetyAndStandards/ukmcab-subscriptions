@@ -29,9 +29,9 @@ public class SubscriptionEngineTests
 
         var services = new ServiceCollection().AddLogging().AddSubscriptionServices(SubscriptionServiceTests.CoreOptions, x =>
         {
-            x.DateTimeProvider = _datetime;
-            x.OutboundEmailSender = _outboundEmailSender;
-            x.CabService = _cabService;
+            x.DateTimeProviderFactory = x => _datetime;
+            x.OutboundEmailSenderFactory = x => _outboundEmailSender;
+            x.CabServiceFactory = x => _cabService;
         });
 
         _services = services.BuildServiceProvider();
@@ -56,7 +56,7 @@ public class SubscriptionEngineTests
         await SubscribeToSearchAsync("test@test.com", "?name=bob", Frequency.Realtime);
 
         // seed results
-        _cabService.Inject(new CabService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" } }));
+        _cabService.Inject(new CabApiService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" } }));
         var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
         Assert.Multiple(() =>
         {
@@ -81,7 +81,7 @@ public class SubscriptionEngineTests
         });
 
         // change results
-        _cabService.Inject(new CabService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob2" } }));
+        _cabService.Inject(new CabApiService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob2" } }));
         result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
         Assert.Multiple(() =>
         {
@@ -115,7 +115,7 @@ public class SubscriptionEngineTests
         _datetime.UtcNow = new DateTime(1980, 7, 1);
         await SubscribeToSearchAsync("test@test.com", "?name=bob", Frequency.Daily);
 
-        _cabService.Inject(new CabService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" } }));
+        _cabService.Inject(new CabApiService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" } }));
         var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
         Assertions(result, init: 1);
         
@@ -123,7 +123,7 @@ public class SubscriptionEngineTests
         Assertions(result, notdue: 1);
 
         // change results...
-        _cabService.Inject(new CabService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob2" } }));
+        _cabService.Inject(new CabApiService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob2" } }));
         
         result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
         Assertions(result, notdue: 1);
@@ -165,7 +165,7 @@ public class SubscriptionEngineTests
         _datetime.UtcNow = new DateTime(1980, 7, 1);
         await SubscribeToSearchAsync("test@test.com", "?name=bob", Frequency.Weekly);
 
-        _cabService.Inject(new CabService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" } }));
+        _cabService.Inject(new CabApiService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" } }));
         var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
         Assertions(result, init: 1);
 
@@ -173,7 +173,7 @@ public class SubscriptionEngineTests
         Assertions(result, notdue: 1);
 
         // change results...
-        _cabService.Inject(new CabService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob2" } }));
+        _cabService.Inject(new CabApiService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob2" } }));
 
         result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
         Assertions(result, notdue: 1);
