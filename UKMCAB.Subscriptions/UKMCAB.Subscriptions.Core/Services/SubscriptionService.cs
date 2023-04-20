@@ -129,7 +129,7 @@ public interface ISubscriptionService
 
 public class SubscriptionService : ISubscriptionService, IClearable
 {
-    private readonly SubscriptionServicesCoreOptions _options;
+    private readonly SubscriptionsCoreServicesOptions _options;
     private readonly ILogger<SubscriptionService> _logger;
     private readonly IRepositories _repositories;
     private readonly IOutboundEmailSender _outboundEmailSender;
@@ -137,7 +137,7 @@ public class SubscriptionService : ISubscriptionService, IClearable
 
     private const string _placeholderPayload = "@payload";
 
-    public SubscriptionService(SubscriptionServicesCoreOptions options, ILogger<SubscriptionService> logger, IRepositories repositories, IOutboundEmailSender outboundEmailSender, ISecureTokenProcessor secureTokenProcessor)
+    public SubscriptionService(SubscriptionsCoreServicesOptions options, ILogger<SubscriptionService> logger, IRepositories repositories, IOutboundEmailSender outboundEmailSender, ISecureTokenProcessor secureTokenProcessor)
     {
         _options = options;
         _logger = logger;

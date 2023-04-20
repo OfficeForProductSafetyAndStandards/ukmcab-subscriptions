@@ -17,7 +17,7 @@ public interface ISubscriptionRepository : IRepository
 /// </summary>
 public class SubscriptionRepository : Repository, ISubscriptionRepository
 {
-    public SubscriptionRepository(AzureDataConnectionString dataConnectionString) : base(dataConnectionString, "subscriptions") { }
+    public SubscriptionRepository(AzureDataConnectionString dataConnectionString) : base(dataConnectionString, $"{SubscriptionsCoreServicesOptions.TableNamePrefix}subscriptions") { }
 
     public async Task UpsertAsync(SubscriptionEntity entity)
     {

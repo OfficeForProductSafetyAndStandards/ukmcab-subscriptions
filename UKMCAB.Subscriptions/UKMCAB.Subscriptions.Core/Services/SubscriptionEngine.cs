@@ -4,7 +4,6 @@ using System.Text.Json;
 using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Data;
 using UKMCAB.Subscriptions.Core.Data.Models;
-using UKMCAB.Subscriptions.Core.Domain;
 using UKMCAB.Subscriptions.Core.Integration.CabService;
 using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 using static UKMCAB.Subscriptions.Core.Services.SubscriptionService;
@@ -19,7 +18,7 @@ public interface ISubscriptionEngine
 
 public class SubscriptionEngine : ISubscriptionEngine, IClearable
 {
-    private readonly SubscriptionServicesCoreOptions _options;
+    private readonly SubscriptionsCoreServicesOptions _options;
     private readonly ILogger<SubscriptionEngine> _logger;
     private readonly IOutboundEmailSender _outboundEmailSender;
     private readonly IRepositories _repositories;
@@ -27,7 +26,7 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
     private readonly ICabService _cabService;
     private readonly BlobContainerClient _blobs;
 
-    public SubscriptionEngine(SubscriptionServicesCoreOptions options, ILogger<SubscriptionEngine> logger, 
+    public SubscriptionEngine(SubscriptionsCoreServicesOptions options, ILogger<SubscriptionEngine> logger, 
         IOutboundEmailSender outboundEmailSender, IRepositories repositories, IDateTimeProvider dateTimeProvider, ICabService cabService)
     {
         _options = options;
@@ -36,7 +35,7 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         _repositories = repositories;
         _dateTimeProvider = dateTimeProvider;
         _cabService = cabService;
-        _blobs = new BlobContainerClient(_options.DataConnectionString, "snapshots");
+        _blobs = new BlobContainerClient(_options.DataConnectionString, $"{SubscriptionsCoreServicesOptions.BlobContainerPrefix}snapshots");
         _options.EmailTemplates.Validate();
     }
 

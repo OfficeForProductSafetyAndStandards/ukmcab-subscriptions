@@ -8,7 +8,7 @@ public record CabSubscriptionRequest(EmailAddress EmailAddress, Guid CabId, Freq
 
 public static class SearchQueryString
 {
-    public static string Process(string? queryString, SubscriptionServicesCoreOptions options)
+    public static string Process(string? queryString, SubscriptionsCoreServicesOptions options)
     {
         return QueryString2.Parse(queryString).Remove(options.SearchQueryStringRemoveKeys).ToString();
     }

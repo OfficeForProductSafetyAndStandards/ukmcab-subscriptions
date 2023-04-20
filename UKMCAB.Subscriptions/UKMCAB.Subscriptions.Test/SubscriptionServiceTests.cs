@@ -16,7 +16,7 @@ public class SubscriptionServiceTests
     private FakeOutboundEmailSender _outboundEmailSender = new();
     private FakeCabService _cabService = new();
 
-    public static SubscriptionServicesCoreOptions CoreOptions { get; } = new ()
+    public static SubscriptionsCoreServicesOptions CoreOptions { get; } = new ()
     {  
         SearchQueryStringRemoveKeys = new[] { "page", "pagesize", "sort" }, 
         EmailTemplates = new EmailTemplates 

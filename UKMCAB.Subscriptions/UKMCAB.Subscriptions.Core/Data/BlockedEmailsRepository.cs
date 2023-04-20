@@ -13,7 +13,7 @@ public interface IBlockedEmailsRepository : IRepository
 
 public class BlockedEmailsRepository : Repository, IBlockedEmailsRepository
 {
-    public BlockedEmailsRepository(AzureDataConnectionString dataConnectionString) : base(dataConnectionString, "blockedemail") { }
+    public BlockedEmailsRepository(AzureDataConnectionString dataConnectionString) : base(dataConnectionString, $"{SubscriptionsCoreServicesOptions.TableNamePrefix}blockedemail") { }
     public async Task<bool> IsBlockedAsync(EmailAddress emailAddress) => await GetAsync<TableEntity>(new Keys(string.Empty, emailAddress)) != null;
     public async Task BlockAsync(EmailAddress emailAddress) => await UpsertAsync(new TableEntity(string.Empty, emailAddress));
     public async Task UnblockAsync(EmailAddress emailAddress) => await DeleteAsync(new Keys(string.Empty, emailAddress));

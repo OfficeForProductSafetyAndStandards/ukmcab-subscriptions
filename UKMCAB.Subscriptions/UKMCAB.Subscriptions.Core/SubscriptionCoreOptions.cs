@@ -1,12 +1,16 @@
-﻿using UKMCAB.Subscriptions.Core.Integration.CabService;
+﻿using UKMCAB.Subscriptions.Core.Domain;
+using UKMCAB.Subscriptions.Core.Integration.CabService;
 
-namespace UKMCAB.Subscriptions.Core.Domain;
+namespace UKMCAB.Subscriptions.Core;
 
 /// <summary>
 /// The core options that need to be configured for this package to function
 /// </summary>
-public class SubscriptionServicesCoreOptions
+public class SubscriptionsCoreServicesOptions
 {
+    internal const string BlobContainerPrefix = "subscriptionscore";
+    internal const string TableNamePrefix = "subscriptionscore";
+
     public string? DataConnectionString { get; set; }
     public EmailTemplates EmailTemplates { get; set; } = new EmailTemplates();
     public string? GovUkNotifyApiKey { get; set; }

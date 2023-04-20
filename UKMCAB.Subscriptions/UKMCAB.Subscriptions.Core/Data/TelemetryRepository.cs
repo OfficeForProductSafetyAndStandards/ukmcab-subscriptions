@@ -11,7 +11,7 @@ public interface ITelemetryRepository : IRepository
 
 public class TelemetryRepository : Repository, ITelemetryRepository
 {
-    public TelemetryRepository(AzureDataConnectionString dataConnectionString) : base(dataConnectionString, "telemetry") { }
+    public TelemetryRepository(AzureDataConnectionString dataConnectionString) : base(dataConnectionString, $"{SubscriptionsCoreServicesOptions.TableNamePrefix}telemetry") { }
 
     public async Task TrackByEmailAddressAsync(string emailAddress, string text)
     {

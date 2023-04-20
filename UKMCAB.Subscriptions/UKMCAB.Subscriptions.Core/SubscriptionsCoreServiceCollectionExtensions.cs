@@ -13,7 +13,7 @@ using UKMCAB.Subscriptions.Core.Services;
 
 public static class SubscriptionsCoreServiceCollectionExtensions
 {
-    public static IServiceCollection AddSubscriptionServices(this IServiceCollection services, SubscriptionServicesCoreOptions options)
+    public static IServiceCollection AddSubscriptionServices(this IServiceCollection services, SubscriptionsCoreServicesOptions options)
     {
         ArgumentNullException.ThrowIfNull(services);
 
