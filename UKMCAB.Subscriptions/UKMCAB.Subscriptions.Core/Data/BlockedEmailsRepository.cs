@@ -1,4 +1,5 @@
 ﻿using Azure.Data.Tables;
+using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Domain;
 
 namespace UKMCAB.Subscriptions.Core.Data;

@@ -1,5 +1,5 @@
-﻿
-using UKMCAB.Subscriptions.Core.Common;
+﻿namespace UKMCAB.Subscriptions.Core.Common;
+
 /// <summary>
 /// The core options that need to be configured for this package to function
 /// </summary>

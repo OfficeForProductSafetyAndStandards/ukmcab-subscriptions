@@ -1,6 +1,7 @@
 ﻿using Azure;
 using Azure.Data.Tables;
 using System.Collections.Concurrent;
+using UKMCAB.Subscriptions.Core.Common;
 
 namespace UKMCAB.Subscriptions.Core.Data;
 
