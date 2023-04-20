@@ -1,4 +1,5 @@
-﻿using UKMCAB.Subscriptions.Core.Data;
+﻿using UKMCAB.Subscriptions.Core.Common;
+using UKMCAB.Subscriptions.Core.Data;
 
 namespace UKMCAB.Subscriptions.Core.Domain;
 

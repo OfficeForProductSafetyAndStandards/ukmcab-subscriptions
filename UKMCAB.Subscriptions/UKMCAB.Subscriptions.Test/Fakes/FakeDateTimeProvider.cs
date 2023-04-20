@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.WebUtilities;
 using UKMCAB.Subscriptions.Core;
 using UKMCAB.Subscriptions.Core.Domain;
+using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 
 namespace UKMCAB.Subscriptions.Test.Fakes;

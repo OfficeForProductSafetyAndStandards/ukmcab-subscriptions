@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using UKMCAB.Subscriptions.Core.Common;
 
 namespace UKMCAB.Subscriptions.Core.Integration.CabService;
 

@@ -1,8 +1,7 @@
 ﻿using System.Text.Json;
-using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Common.Security;
 
-namespace UKMCAB.Subscriptions.Core;
+namespace UKMCAB.Subscriptions.Core.Common;
 
 public static class ExtensionMethods
 {
