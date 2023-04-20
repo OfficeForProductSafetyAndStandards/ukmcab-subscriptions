@@ -48,9 +48,10 @@ public class Repository : IRepository
         return response.HasValue;
     }
 
-    public IAsyncEnumerable<Page<T>> GetAllAsync<T>(string? partitionKey = null, string? continuationToken = null, int? take = null) where T : class, ITableEntity
+    public async Task<IAsyncEnumerable<Page<T>>> GetAllAsync<T>(string? partitionKey = null, string? continuationToken = null, int? take = null) where T : class, ITableEntity
     {
-        if(partitionKey == null)
+        await EnsureAsync().ConfigureAwait(false);
+        if (partitionKey == null)
         {
             return _tableClient.QueryAsync<T>(maxPerPage: take).AsPages(continuationToken, take);
         }

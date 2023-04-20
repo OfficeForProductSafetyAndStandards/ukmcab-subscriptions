@@ -67,7 +67,7 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
 
         await EnsureBlobContainerAsync();
 
-        var pages = _repositories.Subscriptions.GetAllAsync(take:10);
+        var pages = await _repositories.Subscriptions.GetAllAsync(take:10);
         await foreach(var page in pages)
         {
             foreach(var subscription in page.Values)

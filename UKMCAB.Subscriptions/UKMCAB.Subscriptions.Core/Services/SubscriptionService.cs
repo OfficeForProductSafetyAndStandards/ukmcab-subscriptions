@@ -326,7 +326,7 @@ public class SubscriptionService : ISubscriptionService, IClearable
     /// <inheritdoc />
     public async Task<int> UnsubscribeAllAsync(EmailAddress emailAddress)
     {
-        var page = await (_repositories.Subscriptions.GetAllAsync(SubscriptionKey.CreatePartitionKey(emailAddress))).FirstAsync();
+        var page = await (await (_repositories.Subscriptions.GetAllAsync(SubscriptionKey.CreatePartitionKey(emailAddress)))).FirstAsync();
         var count = 0;
 
         while (page.Values.Count > 0)
@@ -336,7 +336,7 @@ public class SubscriptionService : ISubscriptionService, IClearable
                 await _repositories.Subscriptions.DeleteAsync(subscription.GetKeys()).ConfigureAwait(false);
                 count++;
             }
-            page = await (_repositories.Subscriptions.GetAllAsync(SubscriptionKey.CreatePartitionKey(emailAddress))).FirstAsync();
+            page = await (await (_repositories.Subscriptions.GetAllAsync(SubscriptionKey.CreatePartitionKey(emailAddress)))).FirstAsync();
         }
 
         await _repositories.Telemetry.TrackByEmailAddressAsync(emailAddress, "Unsubscribed all").ConfigureAwait(false);
@@ -347,7 +347,7 @@ public class SubscriptionService : ISubscriptionService, IClearable
 
     public async Task<ListSubscriptionsResult> ListSubscriptionsAsync(EmailAddress emailAddress, string? continuationToken = null, int? take = null)
     {
-        var page = await (_repositories.Subscriptions.GetAllAsync(SubscriptionKey.CreatePartitionKey(emailAddress), continuationToken, take)).FirstAsync();
+        var page = await (await (_repositories.Subscriptions.GetAllAsync(SubscriptionKey.CreatePartitionKey(emailAddress), continuationToken, take))).FirstAsync();
         return new(page.Values.Select(x => new Subscription(x.GetKeys(), x.SubscriptionType, x.Frequency)).ToList(), page.ContinuationToken);
     }
 
