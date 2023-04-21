@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "UKMCAB.Subscriptions.Core": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:59166;http://localhost:59167"
+    }
+  }
+}
