@@ -36,7 +36,6 @@ public class SubscriptionEngineTests
         _eng = _services.GetRequiredService<ISubscriptionEngine>();
 
         _outboundEmailSender = _services.GetRequiredService<IOutboundEmailSender>();
-        _outboundEmailSender.Mode = OutboundEmailSenderMode.Pretend;
     }
 
     [SetUp]

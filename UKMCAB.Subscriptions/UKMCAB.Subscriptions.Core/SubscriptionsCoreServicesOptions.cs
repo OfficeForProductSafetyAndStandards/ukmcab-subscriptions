@@ -1,6 +1,7 @@
 ﻿using UKMCAB.Subscriptions.Core.Domain.Emails;
 using UKMCAB.Subscriptions.Core.Domain.Emails.Uris;
 using UKMCAB.Subscriptions.Core.Integration.CabService;
+using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 
 namespace UKMCAB.Subscriptions.Core;
 
@@ -16,6 +17,7 @@ public class SubscriptionsCoreServicesOptions
     public EmailTemplateOptions EmailTemplates { get; set; } = new EmailTemplateOptions();
     public string? GovUkNotifyApiKey { get; set; }
     public CabApiOptions? CabApiOptions { get; set; }
+    public OutboundEmailSenderMode OutboundEmailSenderMode { get; set; } = OutboundEmailSenderMode.Send;
 
     /// <summary>
     /// Uri templates can be configured here or use services.GetRequiredService<IEmailTemplatesService>().Configure(UriTemplateOptions uriTemplateOptions)

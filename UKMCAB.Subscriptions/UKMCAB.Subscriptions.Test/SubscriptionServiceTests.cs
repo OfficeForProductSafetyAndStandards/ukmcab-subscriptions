@@ -38,7 +38,8 @@ public class SubscriptionServiceTests
             Search = new Core.Domain.Emails.Uris.SearchUriTemplateOptions("/search"),
             Unsubscribe = new Core.Domain.Emails.Uris.SubscriptionUriTemplateOptions("@subscriptionid", "/subscriptions/unsubscribe/@subscriptionid"),
             UnsubscribeAll = new Core.Domain.Emails.Uris.UnsubscribeAllUriTemplateOptions("@emailaddress", "/subscriptions/unsubscribe-all/@emailaddress"),
-        }
+        },
+        OutboundEmailSenderMode = OutboundEmailSenderMode.Pretend,
     };
     
     private ServiceProvider _services;
@@ -51,13 +52,9 @@ public class SubscriptionServiceTests
         var services = new ServiceCollection().AddLogging();
         services.AddSingleton<IDateTimeProvider>(_datetime);
         services.AddSingleton<ICabService>(_cabService);
-
         services.AddSubscriptionsCoreServices(CoreOptions);
-
-        _services = services.BuildServiceProvider();
-
+        _services = services.BuildServiceProvider(); 
         _outboundEmailSender = _services.GetRequiredService<IOutboundEmailSender>();
-        _outboundEmailSender.Mode = OutboundEmailSenderMode.Pretend;
     }
 
     [SetUp]

@@ -39,7 +39,7 @@ public static class SubscriptionsCoreServiceCollectionExtensions
         // configurable dependencies
         services.TryAddSingleton<ICabService>(x => new CabApiService(options.CabApiOptions ?? throw new Exception($"{nameof(options)}.{nameof(options.CabApiOptions)} is null")));
         services.TryAddSingleton<IDateTimeProvider>(x => new RealDateTimeProvider());
-        services.TryAddSingleton<IOutboundEmailSender>(x => new OutboundEmailSender(options.GovUkNotifyApiKey ?? throw new Exception($"{nameof(options)}.{nameof(options.GovUkNotifyApiKey)} is null")));
+        services.TryAddSingleton<IOutboundEmailSender>(x => new OutboundEmailSender(options.GovUkNotifyApiKey ?? throw new Exception($"{nameof(options)}.{nameof(options.GovUkNotifyApiKey)} is null"), options.OutboundEmailSenderMode));
 
         var jsonSerializerOptions = new JsonSerializerOptions();
         jsonSerializerOptions.Converters.Add(new EmailAddressConverter());

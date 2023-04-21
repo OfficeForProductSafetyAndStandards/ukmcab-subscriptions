@@ -37,7 +37,11 @@ public class OutboundEmailSender : IOutboundEmailSender
     
     public ConcurrentBag<EmailDefinition> Requests { get; set; } = new();
 
-    public OutboundEmailSender(string apiKey) => _client = new NotificationClient(apiKey);
+    public OutboundEmailSender(string apiKey, OutboundEmailSenderMode mode)
+    {
+        _client = new NotificationClient(apiKey);
+        Mode = mode;
+    }
 
     public async Task SendAsync(EmailDefinition emailDefinition)
     {
@@ -64,5 +68,5 @@ public static class OutboundEmailSenderExtensions
     }
 
     public static string GetLastMetaItem(this IOutboundEmailSender sender, string metaName) 
-        => (sender.Requests.OrderBy(x=>x.Timestamp).LastOrDefault()?.Metadata.Get(metaName)) ?? throw new Exception("Meta item was not found");
+        => ((sender??throw new Exception("sender is null")).Requests.OrderBy(x=>x.Timestamp).LastOrDefault()?.Metadata.Get(metaName)) ?? throw new Exception("Meta item was not found");
 }
