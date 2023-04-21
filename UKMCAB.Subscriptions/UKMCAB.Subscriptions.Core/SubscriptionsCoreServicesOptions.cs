@@ -1,4 +1,5 @@
-﻿using UKMCAB.Subscriptions.Core.Domain;
+﻿using UKMCAB.Subscriptions.Core.Domain.Emails;
+using UKMCAB.Subscriptions.Core.Domain.Emails.Uris;
 using UKMCAB.Subscriptions.Core.Integration.CabService;
 
 namespace UKMCAB.Subscriptions.Core;
@@ -12,9 +13,15 @@ public class SubscriptionsCoreServicesOptions
     internal const string TableNamePrefix = "subscriptionscore";
 
     public string? DataConnectionString { get; set; }
-    public EmailTemplates EmailTemplates { get; set; } = new EmailTemplates();
+    public EmailTemplateOptions EmailTemplates { get; set; } = new EmailTemplateOptions();
     public string? GovUkNotifyApiKey { get; set; }
     public CabApiOptions? CabApiOptions { get; set; }
+
+    /// <summary>
+    /// Uri templates can be configured here or use services.GetRequiredService<IEmailTemplatesService>().Configure(UriTemplateOptions uriTemplateOptions)
+    /// <see cref="IEmailTemplatesService.Configure(UriTemplateOptions)"/>
+    /// </summary>
+    public UriTemplateOptions? UriTemplateOptions { get; set; }
 
     /// <summary>
     /// The AES encryption key for secure token processing.

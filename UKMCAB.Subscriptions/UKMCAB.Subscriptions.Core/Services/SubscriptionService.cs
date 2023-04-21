@@ -1,10 +1,12 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Azure.Core;
+using Microsoft.Extensions.Logging;
 using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Common.Security;
 using UKMCAB.Subscriptions.Core.Common.Security.Tokens;
 using UKMCAB.Subscriptions.Core.Data;
 using UKMCAB.Subscriptions.Core.Data.Models;
 using UKMCAB.Subscriptions.Core.Domain;
+using UKMCAB.Subscriptions.Core.Domain.Emails;
 using UKMCAB.Subscriptions.Core.Domain.Exceptions;
 using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 using static UKMCAB.Subscriptions.Core.Services.SubscriptionService;
@@ -32,15 +34,13 @@ public interface ISubscriptionService
     /// Requests a subscription to a search.  The user will be emailed with a confirmation link which they need to click on to activate/confirm the subscription.
     /// </summary>
     /// <param name="request">The search subscription request</param>
-    /// <param name="absoluteConfirmationUrlFormat">The absolute url (format) to the confirm-subscription page, including the `@payload` replacement token for the payload. e.g., https://ukmcab.service.gov.uk/confirm-subscription?p=@payload</param>
-    Task<RequestSubscriptionResult> RequestSubscriptionAsync(SearchSubscriptionRequest request, string absoluteConfirmationUrlFormat);
+    Task<RequestSubscriptionResult> RequestSubscriptionAsync(SearchSubscriptionRequest request);
 
     /// <summary>
     /// Requests a subscription to a CAB.  The user will be emailed with a confirmation link which they need to click on to activate/confirm the subscription.
     /// </summary>
     /// <param name="request">The subscription request</param>
-    /// <param name="absoluteConfirmationUrlFormat">The absolute url (format) to the confirm-subscription page, including the `@payload` replacement token for the payload. e.g., https://ukmcab.service.gov.uk/confirm-subscription?p=@payload</param>
-    Task<RequestSubscriptionResult> RequestSubscriptionAsync(CabSubscriptionRequest request, string absoluteConfirmationUrlFormat);
+    Task<RequestSubscriptionResult> RequestSubscriptionAsync(CabSubscriptionRequest request);
     
     /// <summary>
     /// Block email address (stops all future email being sent to this email address)
@@ -74,10 +74,9 @@ public interface ISubscriptionService
     /// Requests to update an email address on a subscription
     /// </summary>
     /// <param name="options"></param>
-    /// <param name="absoluteConfirmationUrlFormat"></param>
     /// <exception cref="SubscriptionsCoreDomainException">Raised if the email address is on a blocked list, or the email is the same as the one on the current subscription or if there's another subscription for the same topic on that email address</exception>
     /// <returns></returns>
-    Task<string> RequestUpdateEmailAddressAsync(UpdateEmailAddressOptions options, string absoluteConfirmationUrlFormat);
+    Task<string> RequestUpdateEmailAddressAsync(UpdateEmailAddressOptions options);
 
     /// <summary>
     /// Confirms an updated email address
@@ -134,16 +133,22 @@ public class SubscriptionService : ISubscriptionService, IClearable
     private readonly IRepositories _repositories;
     private readonly IOutboundEmailSender _outboundEmailSender;
     private readonly ISecureTokenProcessor _secureTokenProcessor;
-
+    private readonly IEmailTemplatesService _emailTemplatesService;
     private const string _placeholderPayload = "@payload";
 
-    public SubscriptionService(SubscriptionsCoreServicesOptions options, ILogger<SubscriptionService> logger, IRepositories repositories, IOutboundEmailSender outboundEmailSender, ISecureTokenProcessor secureTokenProcessor)
+    public SubscriptionService(SubscriptionsCoreServicesOptions options, 
+        ILogger<SubscriptionService> logger, 
+        IRepositories repositories, 
+        IOutboundEmailSender outboundEmailSender, 
+        ISecureTokenProcessor secureTokenProcessor, 
+        IEmailTemplatesService emailTemplatesService)
     {
         _options = options;
         _logger = logger;
         _repositories = repositories;
         _outboundEmailSender = outboundEmailSender;
         _secureTokenProcessor = secureTokenProcessor;
+        _emailTemplatesService = emailTemplatesService;
         _options.EmailTemplates.Validate();
     }
 
@@ -158,7 +163,7 @@ public class SubscriptionService : ISubscriptionService, IClearable
     public record RequestSubscriptionResult(ValidationResult ValidationResult, string? Token);
 
     /// <inheritdoc />
-    public async Task<RequestSubscriptionResult> RequestSubscriptionAsync(SearchSubscriptionRequest request, string absoluteConfirmationUrlFormat)
+    public async Task<RequestSubscriptionResult> RequestSubscriptionAsync(SearchSubscriptionRequest request)
     {
         request = request with { SearchQueryString = SearchQueryString.Process(request.SearchQueryString, _options) };
 
@@ -166,26 +171,26 @@ public class SubscriptionService : ISubscriptionService, IClearable
 
         if (validation == ValidationResult.Success)
         {
-            var createConfirmUrlResult = CreateConfirmUrl(absoluteConfirmationUrlFormat, nameof(ConfirmSearchSubscriptionAsync), request);
-            await _outboundEmailSender.SendAsync(_options.EmailTemplates.ConfirmSearchSubscription, request.EmailAddress, new Dictionary<string, dynamic> { ["link"] = createConfirmUrlResult.Url });
+            var email = _emailTemplatesService.GetConfirmSearchSubscriptionEmailDefinition(request.EmailAddress, CreateConfirmationToken(request));
+            await _outboundEmailSender.SendAsync(email);
             await _repositories.Telemetry.TrackByEmailAddressAsync(request.EmailAddress, $"Requested search subscription");
-            return new(validation, createConfirmUrlResult.Token);
+            return new(validation, email.Token);
         }
 
         return new(validation, null);
     }
 
     /// <inheritdoc />
-    public async Task<RequestSubscriptionResult> RequestSubscriptionAsync(CabSubscriptionRequest request, string absoluteConfirmationUrlFormat)
+    public async Task<RequestSubscriptionResult> RequestSubscriptionAsync(CabSubscriptionRequest request)
     {
         var validation = await ValidateRequestAsync(request);
 
         if (validation == ValidationResult.Success)
         {
-            var createConfirmUrlResult = CreateConfirmUrl(absoluteConfirmationUrlFormat, nameof(ConfirmSearchSubscriptionAsync), request);
-            await _outboundEmailSender.SendAsync(_options.EmailTemplates.ConfirmCabSubscription, request.EmailAddress, new Dictionary<string, dynamic> { ["link"] = createConfirmUrlResult.Url });
+            var email = _emailTemplatesService.GetConfirmCabSubscriptionEmailDefinition(request.EmailAddress, CreateConfirmationToken(request));
+            await _outboundEmailSender.SendAsync(email);
             await _repositories.Telemetry.TrackByEmailAddressAsync(request.EmailAddress, $"Requested cab subscription (cabid={request.CabId})");
-            return new(validation, createConfirmUrlResult.Token);
+            return new(validation, email.Token);
         }
 
         return new(validation, null);
@@ -253,19 +258,19 @@ public class SubscriptionService : ISubscriptionService, IClearable
     public record UpdateEmailAddressOptions(string SubscriptionId, EmailAddress EmailAddress);
 
     /// <inheritdoc />
-    public async Task<string> RequestUpdateEmailAddressAsync(UpdateEmailAddressOptions options, string absoluteConfirmationUrlFormat)
+    public async Task<string> RequestUpdateEmailAddressAsync(UpdateEmailAddressOptions options)
     {
         var sub = await _repositories.Subscriptions.GetAsync(new SubscriptionKey(options.SubscriptionId))
             ?? throw new SubscriptionsCoreDomainException("Subscription does not exist");
         
         await ValidateRequestAsync(options, sub);
-
-        var createConfirmUrlResult = CreateConfirmUrl(absoluteConfirmationUrlFormat, nameof(ConfirmUpdateEmailAddressAsync), options);
-        await _outboundEmailSender.SendAsync(_options.EmailTemplates.ConfirmUpdateEmailAddress, options.EmailAddress, new Dictionary<string, dynamic> { ["link"] = createConfirmUrlResult.Url });
+        
+        var email = _emailTemplatesService.GetConfirmUpdateEmailAddressEmailDefinition(options.EmailAddress, CreateConfirmationToken(options));
+        await _outboundEmailSender.SendAsync(email);
         await _repositories.Telemetry.TrackByEmailAddressAsync(options.EmailAddress, $"Requested update email address for subscription ({options.SubscriptionId})");
         await _repositories.Telemetry.TrackByEmailAddressAsync(sub.EmailAddress, $"Requested update email address for subscription ({options.SubscriptionId})");
 
-        return createConfirmUrlResult.Token;
+        return email.Token ?? throw new InvalidOperationException("Token should be present");
     }
 
     /// <inheritdoc />
@@ -428,16 +433,10 @@ public class SubscriptionService : ISubscriptionService, IClearable
         return ValidationResult.Success;
     }
 
-    public record CreateConfirmUrlResult(string Url, string Token);
-
-    private CreateConfirmUrlResult CreateConfirmUrl<T>(string absoluteConfirmationUrlFormat, string method, T options)
+    private string CreateConfirmationToken<T>(T options)
     {
-        Guard.IsTrue(absoluteConfirmationUrlFormat.DoesContain(_placeholderPayload),
-                    $"Parameter {nameof(absoluteConfirmationUrlFormat)} should contain the token '{_placeholderPayload}' which will be replaced with an encrypted payload that can be passed into `{method}`");
-
         var tok = _secureTokenProcessor.Enclose(new ExpiringToken<T>(options, 7 * 24)) ?? throw new Exception("Token cannot be null");
-        var url = absoluteConfirmationUrlFormat.Replace(_placeholderPayload, tok);
-        return new(url, tok);
+        return tok;
     }
 
     private async Task ValidateRequestAsync(UpdateEmailAddressOptions options, SubscriptionEntity sub)

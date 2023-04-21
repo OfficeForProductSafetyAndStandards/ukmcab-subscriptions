@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using UKMCAB.Subscriptions.Core;
@@ -16,12 +15,11 @@ public class SubscriptionEngineTests
 {
     private FakeDateTimeProvider _datetime = new();
     private FakeCabService _cabService = new();
-    private FakeOutboundEmailSender _outboundEmailSender = new();
     private ServiceProvider _services;
     private ISubscriptionService _subs;
     private ISubscriptionEngine _eng;
-    private const string _fakeConfirmationUrl = "http://test.com/?payload=@payload";
-
+    private IOutboundEmailSender _outboundEmailSender;
+    
     [OneTimeSetUp]
     public void SetupOnce()
     {
@@ -29,14 +27,16 @@ public class SubscriptionEngineTests
 
         var services = new ServiceCollection().AddLogging();
         services.AddSingleton<IDateTimeProvider>(_datetime);
-        services.AddSingleton<IOutboundEmailSender>(_outboundEmailSender);
         services.AddSingleton<ICabService>(_cabService);
 
-        services.AddSubscriptionServices(SubscriptionServiceTests.CoreOptions);
+        services.AddSubscriptionsCoreServices(SubscriptionServiceTests.CoreOptions);
 
         _services = services.BuildServiceProvider();
         _subs = _services.GetRequiredService<ISubscriptionService>();
         _eng = _services.GetRequiredService<ISubscriptionEngine>();
+
+        _outboundEmailSender = _services.GetRequiredService<IOutboundEmailSender>();
+        _outboundEmailSender.Mode = OutboundEmailSenderMode.Pretend;
     }
 
     [SetUp]
@@ -228,7 +228,7 @@ public class SubscriptionEngineTests
         const string e = "john@cab.com";
         var cabId = Guid.NewGuid();
 
-        var requestSubscriptionResult = await _subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Realtime), _fakeConfirmationUrl);
+        var requestSubscriptionResult = await _subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Realtime));
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
 
         var confirmSubscriptionResult = await _subs.ConfirmCabSubscriptionAsync(requestSubscriptionResult.Token ?? throw new Exception("Token should not be null"));
@@ -300,7 +300,7 @@ public class SubscriptionEngineTests
     {
         var req = new SearchSubscriptionRequest(email, query, frequency);
 
-        var requestSubscriptionResult = await _subs.RequestSubscriptionAsync(req, _fakeConfirmationUrl);
+        var requestSubscriptionResult = await _subs.RequestSubscriptionAsync(req);
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
 
         var confirmSubscriptionResult = await _subs.ConfirmSearchSubscriptionAsync(requestSubscriptionResult.Token);

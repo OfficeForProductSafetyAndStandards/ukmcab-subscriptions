@@ -1,19 +1,26 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 using System.Text.Json;
 using UKMCAB.Subscriptions.Core;
 using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Common.Security.Tokens;
 using UKMCAB.Subscriptions.Core.Data;
 using UKMCAB.Subscriptions.Core.Domain;
+using UKMCAB.Subscriptions.Core.Domain.Emails;
 using UKMCAB.Subscriptions.Core.Integration.CabService;
 using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 using UKMCAB.Subscriptions.Core.Services;
 
 public static class SubscriptionsCoreServiceCollectionExtensions
 {
-    public static IServiceCollection AddSubscriptionServices(this IServiceCollection services, SubscriptionsCoreServicesOptions options)
+    /// <summary>
+    /// Adds Subscriptions Core services
+    /// </summary>
+    /// <param name="services">The services collection</param>
+    /// <param name="options">The core options</param>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    public static IServiceCollection AddSubscriptionsCoreServices(this IServiceCollection services, SubscriptionsCoreServicesOptions options)
     {
         ArgumentNullException.ThrowIfNull(services);
 
@@ -26,6 +33,8 @@ public static class SubscriptionsCoreServiceCollectionExtensions
         services.AddSingleton<IBlockedEmailsRepository, BlockedEmailsRepository>();
         services.AddSingleton<ITelemetryRepository, TelemetryRepository>();
         services.AddSingleton<IRepositories, Repositories>();
+
+        services.AddSingleton<IEmailTemplatesService>(x => new EmailTemplatesService(options.EmailTemplates, options.UriTemplateOptions));
 
         // configurable dependencies
         services.TryAddSingleton<ICabService>(x => new CabApiService(options.CabApiOptions ?? throw new Exception($"{nameof(options)}.{nameof(options.CabApiOptions)} is null")));

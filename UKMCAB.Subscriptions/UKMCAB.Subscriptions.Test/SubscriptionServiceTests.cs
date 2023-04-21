@@ -13,24 +13,35 @@ namespace UKMCAB.Subscriptions.Test;
 public class SubscriptionServiceTests
 {
     private FakeDateTimeProvider _datetime = new();
-    private FakeOutboundEmailSender _outboundEmailSender = new();
     private FakeCabService _cabService = new();
+    private IOutboundEmailSender _outboundEmailSender = null!;
 
     public static SubscriptionsCoreServicesOptions CoreOptions { get; } = new ()
     {  
         SearchQueryStringRemoveKeys = new[] { "page", "pagesize", "sort" }, 
-        EmailTemplates = new EmailTemplates 
-        { 
-            ConfirmCabSubscription = "1",
-            ConfirmSearchSubscription = "2",
-            ConfirmUpdateEmailAddress = "3",
-            CabUpdated = "4",
-            SearchUpdated = "5",
-        } 
+        EmailTemplates = new Core.Domain.Emails.EmailTemplateOptions
+        {
+            ConfirmSearchSubscriptionTemplateId = "1",
+            ConfirmCabSubscriptionTemplateId = "2",
+            ConfirmUpdateEmailAddressTemplateId = "3",
+            CabUpdatedTemplateId = "4",
+            SearchUpdatedTemplateId = "5"
+        },
+        UriTemplateOptions = new Core.Domain.Emails.Uris.UriTemplateOptions
+        {
+            BaseUri = new Uri("http://localhost"),
+            CabDetails = new Core.Domain.Emails.Uris.ViewCabUriTemplateOptions("@cabid", "/cab/@cabid"),
+            ConfirmCabSubscription = new Core.Domain.Emails.Uris.ConfirmationUriTemplateOptions("@token", "/subscriptions/cab/confirm?tok=@token"),
+            ConfirmSearchSubscription = new Core.Domain.Emails.Uris.ConfirmationUriTemplateOptions("@token", "/subscriptions/search/confirm?tok=@token"),
+            ConfirmUpdateEmailAddress = new Core.Domain.Emails.Uris.ConfirmationUriTemplateOptions("@token", "/subscriptions/update-email/confirm?tok=@token"),
+            ManageSubscription = new Core.Domain.Emails.Uris.SubscriptionUriTemplateOptions("@subscriptionid", "/subscriptions/manage/@subscriptionid"),
+            Search = new Core.Domain.Emails.Uris.SearchUriTemplateOptions("/search"),
+            Unsubscribe = new Core.Domain.Emails.Uris.SubscriptionUriTemplateOptions("@subscriptionid", "/subscriptions/unsubscribe/@subscriptionid"),
+            UnsubscribeAll = new Core.Domain.Emails.Uris.UnsubscribeAllUriTemplateOptions("@emailaddress", "/subscriptions/unsubscribe-all/@emailaddress"),
+        }
     };
     
     private ServiceProvider _services;
-    private const string _fakeConfirmationUrl = "http://test.com/?payload=@payload";
 
     [OneTimeSetUp]
     public void SetupOnce()
@@ -39,12 +50,14 @@ public class SubscriptionServiceTests
 
         var services = new ServiceCollection().AddLogging();
         services.AddSingleton<IDateTimeProvider>(_datetime);
-        services.AddSingleton<IOutboundEmailSender>(_outboundEmailSender);
         services.AddSingleton<ICabService>(_cabService);
 
-        services.AddSubscriptionServices(CoreOptions);
-        
+        services.AddSubscriptionsCoreServices(CoreOptions);
+
         _services = services.BuildServiceProvider();
+
+        _outboundEmailSender = _services.GetRequiredService<IOutboundEmailSender>();
+        _outboundEmailSender.Mode = OutboundEmailSenderMode.Pretend;
     }
 
     [SetUp]
@@ -64,10 +77,10 @@ public class SubscriptionServiceTests
         var req = new SearchSubscriptionRequest("test@test.com", searchQueryString, Frequency.Realtime);
 
         var subs = _services.GetRequiredService<ISubscriptionService>();
-        var r1 = await subs.RequestSubscriptionAsync(req, _fakeConfirmationUrl);
+        var r1 = await subs.RequestSubscriptionAsync(req);
         Assert.That(r1.ValidationResult,Is.EqualTo(ValidationResult.Success));
 
-        var confirmationPayload = _outboundEmailSender.GetLastPayload();
+        var confirmationPayload = _outboundEmailSender.GetLastToken();
         var r2 = await subs.ConfirmSearchSubscriptionAsync(confirmationPayload);
         Assert.That(r2.ValidationResult, Is.EqualTo(ValidationResult.Success));
         Assert.That(r2.Id, Is.Not.Null);
@@ -100,10 +113,10 @@ public class SubscriptionServiceTests
     {
         var req = new SearchSubscriptionRequest("test@test.com", searchQueryString, Frequency.Realtime);
         var subs = _services.GetRequiredService<ISubscriptionService>();
-        var r1 = await subs.RequestSubscriptionAsync(req, _fakeConfirmationUrl);
+        var r1 = await subs.RequestSubscriptionAsync(req);
         Assert.That(r1.ValidationResult, Is.EqualTo(ValidationResult.Success));
 
-        var confirmationPayload = _outboundEmailSender.GetLastPayload();
+        var confirmationPayload = _outboundEmailSender.GetLastToken();
         var r2 = await subs.ConfirmSearchSubscriptionAsync(confirmationPayload);
         Assert.That(r2.ValidationResult, Is.EqualTo(ValidationResult.Success));
         Assert.That(r2.Id, Is.Not.Null);
@@ -111,7 +124,7 @@ public class SubscriptionServiceTests
         foreach ( var equiv in equivs )
         {
             var reqn = new SearchSubscriptionRequest(req.EmailAddress, equiv, Frequency.Realtime);
-            var rn = await subs.RequestSubscriptionAsync(reqn, _fakeConfirmationUrl);
+            var rn = await subs.RequestSubscriptionAsync(reqn);
             Assert.That(rn.ValidationResult, Is.EqualTo(ValidationResult.AlreadySubscribed));
         }
     }
@@ -192,11 +205,11 @@ public class SubscriptionServiceTests
         var subs = _services.GetRequiredService<ISubscriptionService>();
 
         // Request subscription
-        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new SearchSubscriptionRequest("test@test.com", "", Frequency.Daily), _fakeConfirmationUrl);
+        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new SearchSubscriptionRequest("test@test.com", "", Frequency.Daily));
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
         
         // Confirm subscription
-        var confirmSearchSubscriptionResult = await subs.ConfirmSearchSubscriptionAsync(_outboundEmailSender.GetLastPayload());
+        var confirmSearchSubscriptionResult = await subs.ConfirmSearchSubscriptionAsync(_outboundEmailSender.GetLastToken());
         Assert.Multiple(() =>
         {
             Assert.That(confirmSearchSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
@@ -204,10 +217,10 @@ public class SubscriptionServiceTests
         });
 
         // Request update email
-        await subs.RequestUpdateEmailAddressAsync(new UpdateEmailAddressOptions(confirmSearchSubscriptionResult.Id, "test2@test.com"), _fakeConfirmationUrl);
+        await subs.RequestUpdateEmailAddressAsync(new UpdateEmailAddressOptions(confirmSearchSubscriptionResult.Id, "test2@test.com"));
 
         // Confirm update email
-        var id = await subs.ConfirmUpdateEmailAddressAsync(_outboundEmailSender.GetLastPayload());
+        var id = await subs.ConfirmUpdateEmailAddressAsync(_outboundEmailSender.GetLastToken());
         Assert.That(id, Is.Not.Null);
 
         var isSubscribedOld = await subs.IsSubscribedToSearchAsync("test@test.com", "");
@@ -227,7 +240,7 @@ public class SubscriptionServiceTests
         var cabId = Guid.NewGuid();
         var subs = _services.GetRequiredService<ISubscriptionService>();
      
-        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily), _fakeConfirmationUrl);
+        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily));
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));   
         
         var confirmSubscriptionResult = await subs.ConfirmCabSubscriptionAsync(requestSubscriptionResult.Token ?? throw new Exception("Token should not be null"));
@@ -262,19 +275,19 @@ public class SubscriptionServiceTests
 
         await subs.BlockEmailAsync(e);
 
-        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily), _fakeConfirmationUrl);
+        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily));
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.EmailBlocked));
         
         await subs.UnblockEmailAsync(e);
 
-        var requestSubscriptionResult2 = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily), _fakeConfirmationUrl);
+        var requestSubscriptionResult2 = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily));
         Assert.That(requestSubscriptionResult2.ValidationResult, Is.EqualTo(ValidationResult.Success));
     }
 
 
     private async Task<ConfirmSubscriptionResult> SubscribeSearchAsync(ISubscriptionService subs, string email, string query)
     {
-        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new SearchSubscriptionRequest(email, query, Frequency.Daily), _fakeConfirmationUrl);
+        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new SearchSubscriptionRequest(email, query, Frequency.Daily));
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
         var confirmSearchSubscriptionResult = await subs.ConfirmSearchSubscriptionAsync(requestSubscriptionResult.Token);
         Assert.That(confirmSearchSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));

@@ -4,14 +4,15 @@ using System.Text.Json;
 using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Data;
 using UKMCAB.Subscriptions.Core.Data.Models;
+using UKMCAB.Subscriptions.Core.Domain.Emails;
 using UKMCAB.Subscriptions.Core.Integration.CabService;
 using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
-using static UKMCAB.Subscriptions.Core.Services.SubscriptionService;
 
 namespace UKMCAB.Subscriptions.Core.Services;
 
 public interface ISubscriptionEngine
 {
+    bool CanProcess();
     Task<SubscriptionEngine.ResultAccumulator> ProcessAsync(CancellationToken cancellationToken);
 }
 
@@ -24,10 +25,11 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
     private readonly IRepositories _repositories;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly ICabService _cabService;
+    private readonly IEmailTemplatesService _emailTemplatesService;
     private readonly BlobContainerClient _blobs;
 
     public SubscriptionEngine(SubscriptionsCoreServicesOptions options, ILogger<SubscriptionEngine> logger, 
-        IOutboundEmailSender outboundEmailSender, IRepositories repositories, IDateTimeProvider dateTimeProvider, ICabService cabService)
+        IOutboundEmailSender outboundEmailSender, IRepositories repositories, IDateTimeProvider dateTimeProvider, ICabService cabService, IEmailTemplatesService emailTemplatesService)
     {
         _options = options;
         _logger = logger;
@@ -35,6 +37,7 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         _repositories = repositories;
         _dateTimeProvider = dateTimeProvider;
         _cabService = cabService;
+        _emailTemplatesService = emailTemplatesService;
         _blobs = new BlobContainerClient(_options.DataConnectionString, $"{SubscriptionsCoreServicesOptions.BlobContainerPrefix}snapshots");
         _options.EmailTemplates.Validate();
     }
@@ -60,9 +63,17 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         };
     }
 
+    /// <summary>
+    /// Returns whether the engine *can* process subscriptions (whether the uri templates are configured)
+    /// </summary>
+    /// <returns></returns>
+    public bool CanProcess() => _emailTemplatesService.IsConfigured();
+
     /// <inheritdoc />
     public async Task<ResultAccumulator> ProcessAsync(CancellationToken cancellationToken)
     {
+        _emailTemplatesService.AssertIsUriTemplateOptionsConfigured();
+
         var rv = new ResultAccumulator();
 
         await EnsureBlobContainerAsync();
@@ -176,7 +187,8 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
 
             try
             {
-                await _outboundEmailSender.SendAsync(_options.EmailTemplates.SearchUpdated, subscription.EmailAddress, new Dictionary<string, dynamic> { ["link"] = "" }).ConfigureAwait(false);
+                var email = _emailTemplatesService.GetSearchUpdatedEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), subscription.SearchQueryString);
+                await _outboundEmailSender.SendAsync(email).ConfigureAwait(false);
                 await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
                 await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),
                     $"Notified subscription: Search updated. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
@@ -199,7 +211,9 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         Guard.IsTrue(subscription.SubscriptionType == SubscriptionType.Cab, $"The subscription type should be '{SubscriptionType.Cab}'");
         Guard.IsTrue(subscription.LastThumbprint is not null, "The subscription needs to be initialised.");
 
-        var data = await GetCabDataAsync(subscription.CabId ?? throw new Exception("Cab ID is null"));
+        var cabId = subscription.CabId ?? throw new Exception("Cab ID is null");
+
+        var data = await GetCabDataAsync(cabId);
 
         if (subscription.LastThumbprint.DoesNotEqual(data.Thumbprint, StringComparison.Ordinal)) // search results have changed.
         {
@@ -224,7 +238,8 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
 
             try
             {
-                await _outboundEmailSender.SendAsync(_options.EmailTemplates.CabUpdated, subscription.EmailAddress, new Dictionary<string, dynamic> { ["link"] = "" }).ConfigureAwait(false);
+                var email = _emailTemplatesService.GetCabUpdatedEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), cabId);
+                await _outboundEmailSender.SendAsync(email).ConfigureAwait(false);
                 await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
                 await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),
                     $"Notified subscription: Search updated. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
