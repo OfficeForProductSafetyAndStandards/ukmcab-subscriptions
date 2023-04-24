@@ -25,7 +25,9 @@ public class SubscriptionServiceTests
             ConfirmCabSubscriptionTemplateId = "2",
             ConfirmUpdateEmailAddressTemplateId = "3",
             CabUpdatedTemplateId = "4",
-            SearchUpdatedTemplateId = "5"
+            SearchUpdatedTemplateId = "5",
+SubscribedCabNotificationTemplateId ="6",            
+SubscribedSearchNotificationTemplateId="7",            
         },
         UriTemplateOptions = new Core.Domain.Emails.Uris.UriTemplateOptions
         {
@@ -78,9 +80,14 @@ public class SubscriptionServiceTests
         Assert.That(r1.ValidationResult,Is.EqualTo(ValidationResult.Success));
 
         var confirmationPayload = _outboundEmailSender.GetLastToken();
+        _outboundEmailSender.Requests.Clear();
+
         var r2 = await subs.ConfirmSearchSubscriptionAsync(confirmationPayload);
         Assert.That(r2.ValidationResult, Is.EqualTo(ValidationResult.Success));
         Assert.That(r2.Id, Is.Not.Null);
+
+        var email = _outboundEmailSender.Requests.FirstOrDefault();
+        Assert.That(email, Is.Not.Null);
 
         var r3 = await subs.ConfirmSearchSubscriptionAsync(confirmationPayload);
         Assert.That(r3.ValidationResult, Is.EqualTo(ValidationResult.AlreadySubscribed));
@@ -238,11 +245,16 @@ public class SubscriptionServiceTests
         var subs = _services.GetRequiredService<ISubscriptionService>();
      
         var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily));
-        Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));   
-        
+        Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
+
+        _outboundEmailSender.Requests.Clear();
+
         var confirmSubscriptionResult = await subs.ConfirmCabSubscriptionAsync(requestSubscriptionResult.Token ?? throw new Exception("Token should not be null"));
         Assert.That(confirmSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
         Assert.That(confirmSubscriptionResult.Id, Is.Not.Null);
+
+        var email = _outboundEmailSender.Requests.FirstOrDefault();
+        Assert.That(email, Is.Not.Null);
 
         var subscription = await subs.GetSubscriptionAsync(confirmSubscriptionResult.Id);
         Assert.That(subscription, Is.Not.Null);

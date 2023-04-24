@@ -147,8 +147,9 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
     {
         Guard.IsTrue(subscription.SubscriptionType == SubscriptionType.Cab, $"The subscription type should be '{SubscriptionType.Cab}'");
         Guard.IsTrue(subscription.LastThumbprint is null, "The subscription does not need to be initialised.");
+        Guard.IsNotNull(subscription.CabId, $"{nameof(subscription.CabId)} should not be null");
         
-        var data = await GetCabDataAsync(subscription.CabId ?? throw new Exception("Cab ID is null"));
+        var data = await GetCabDataAsync(subscription.CabId!.Value) ?? throw new Exception("Cab data not found when initialising CAB subscription");
 
         subscription.LastThumbprint = data.Thumbprint;
         subscription.BlobName = subscription.CreateBlobName();
@@ -213,9 +214,9 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
 
         var cabId = subscription.CabId ?? throw new Exception("Cab ID is null");
 
-        var data = await GetCabDataAsync(cabId);
+        var data = await GetCabDataAsync(cabId); // if the CAB is no longer found, just leave the subscription dormant.
 
-        if (subscription.LastThumbprint.DoesNotEqual(data.Thumbprint, StringComparison.Ordinal)) // search results have changed.
+        if (data != null && subscription.LastThumbprint.DoesNotEqual(data.Thumbprint, StringComparison.Ordinal)) // search results have changed.
         {
             var old = new
             {
@@ -255,9 +256,9 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         return rv;
     }
 
-    record SearchResultData(string Thumbprint, string Json);
+    record Data(string Thumbprint, string Json);
 
-    private async Task<SearchResultData> GetSearchResultDataAsync(string? searchQueryString)
+    private async Task<Data> GetSearchResultDataAsync(string? searchQueryString)
     {
         var results = (await _cabService.SearchAsync(searchQueryString)) ?? throw new Exception("Search returned null");
         results = results with { Results = results.Results.OrderBy(x => x.CabId).ToList() };
@@ -266,12 +267,19 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         return new(thumbprint, json);
     }
 
-    private async Task<SearchResultData> GetCabDataAsync(Guid id)
+    private async Task<Data?> GetCabDataAsync(Guid id)
     {
-        var cab = (await _cabService.GetAsync(id)) ?? throw new Exception("Cab not found for id " + id);
-        var json = JsonSerializer.Serialize(cab, new JsonSerializerOptions { WriteIndented = false }) ?? throw new Exception("Serializing cab returned null");
-        var thumbprint = json.Md5() ?? throw new Exception("MD5 hashing returned null");
-        return new(thumbprint, json);
+        var cab = await _cabService.GetAsync(id);
+        if(cab != null)
+        {
+            var json = JsonSerializer.Serialize(cab, new JsonSerializerOptions { WriteIndented = false }) ?? throw new Exception("Serializing cab returned null");
+            var thumbprint = json.Md5() ?? throw new Exception("MD5 hashing returned null");
+            return new(thumbprint, json);
+        }
+        else
+        {
+            return null;
+        }
     }
 
     private async Task EnsureBlobContainerAsync()

@@ -11,6 +11,8 @@ public interface IEmailTemplatesService
     EmailDefinition GetConfirmSearchSubscriptionEmailDefinition(EmailAddress recipient, string token);
     EmailDefinition GetConfirmUpdateEmailAddressEmailDefinition(EmailAddress recipient, string token);
     EmailDefinition GetSearchUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, string? query);
+    EmailDefinition GetSubscribedCabEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId);
+    EmailDefinition GetSubscribedSearchEmailDefinition(EmailAddress recipient, string subscriptionId, string? query);
     bool IsConfigured();
 }
 
@@ -29,14 +31,18 @@ public class EmailTemplatesService : IEmailTemplatesService
         }
     }
 
+
     public void Configure(UriTemplateOptions uriTemplateOptions)
     {
         _uriTemplates = new UriTemplates(uriTemplateOptions);
     }
 
+    
     public void AssertIsUriTemplateOptionsConfigured() => _ = _uriTemplates ?? throw new UriTemplatesNotConfiguredException();
 
+
     public bool IsConfigured() => _uriTemplates != null;
+
 
     public EmailDefinition GetConfirmSearchSubscriptionEmailDefinition(EmailAddress recipient, string token)
     {
@@ -49,6 +55,7 @@ public class EmailTemplatesService : IEmailTemplatesService
         return def;
     }
 
+
     public EmailDefinition GetConfirmCabSubscriptionEmailDefinition(EmailAddress recipient, string token)
     {
         AssertIsUriTemplateOptionsConfigured();
@@ -60,6 +67,7 @@ public class EmailTemplatesService : IEmailTemplatesService
         return def;
     }
 
+
     public EmailDefinition GetConfirmUpdateEmailAddressEmailDefinition(EmailAddress recipient, string token)
     {
         AssertIsUriTemplateOptionsConfigured();
@@ -70,6 +78,7 @@ public class EmailTemplatesService : IEmailTemplatesService
         def.AddMetadataToken(token);
         return def;
     }
+
 
     public EmailDefinition GetSearchUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, string? query)
     {
@@ -86,8 +95,12 @@ public class EmailTemplatesService : IEmailTemplatesService
         var unsubscribeAllUrl = _uriTemplates.GetUnsubscribeAllUrl(recipient);
         def.Replacements.Add(EmailPlaceholders.UnsubscribeAllLink, unsubscribeAllUrl);
 
+        var manageSubUrl = _uriTemplates.GetManageMySubscriptionUrl(subscriptionId);
+        def.Replacements.Add(EmailPlaceholders.ManageMySubscriptionLink, manageSubUrl);
+
         return def;
     }
+
 
     public EmailDefinition GetCabUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId)
     {
@@ -103,6 +116,55 @@ public class EmailTemplatesService : IEmailTemplatesService
 
         var unsubscribeAllUrl = _uriTemplates.GetUnsubscribeAllUrl(recipient);
         def.Replacements.Add(EmailPlaceholders.UnsubscribeAllLink, unsubscribeAllUrl);
+
+        var manageSubUrl = _uriTemplates.GetManageMySubscriptionUrl(subscriptionId);
+        def.Replacements.Add(EmailPlaceholders.ManageMySubscriptionLink, manageSubUrl);
+
+        return def;
+    }
+
+
+
+    public EmailDefinition GetSubscribedSearchEmailDefinition(EmailAddress recipient, string subscriptionId, string? query)
+    {
+        AssertIsUriTemplateOptionsConfigured();
+
+        var def = new EmailDefinition(_emailTemplateOptions.SubscribedSearchNotificationTemplateId, recipient);
+
+        var searchUrl = _uriTemplates!.GetSearchUrl(query);
+        def.Replacements.Add(EmailPlaceholders.ViewSearchLink, searchUrl);
+
+        var unsubscribeUrl = _uriTemplates.GetUnsubscribeUrl(subscriptionId);
+        def.Replacements.Add(EmailPlaceholders.UnsubscribeLink, unsubscribeUrl);
+
+        var unsubscribeAllUrl = _uriTemplates.GetUnsubscribeAllUrl(recipient);
+        def.Replacements.Add(EmailPlaceholders.UnsubscribeAllLink, unsubscribeAllUrl);
+
+        var manageSubUrl = _uriTemplates.GetManageMySubscriptionUrl(subscriptionId);
+        def.Replacements.Add(EmailPlaceholders.ManageMySubscriptionLink, manageSubUrl);
+
+        return def;
+    }
+
+
+
+    public EmailDefinition GetSubscribedCabEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId)
+    {
+        AssertIsUriTemplateOptionsConfigured();
+
+        var def = new EmailDefinition(_emailTemplateOptions.SubscribedCabNotificationTemplateId, recipient);
+
+        var cabDetailsUrl = _uriTemplates!.GetCabDetailsUrl(cabId);
+        def.Replacements.Add(EmailPlaceholders.ViewCabLink, cabDetailsUrl);
+
+        var unsubscribeUrl = _uriTemplates.GetUnsubscribeUrl(subscriptionId);
+        def.Replacements.Add(EmailPlaceholders.UnsubscribeLink, unsubscribeUrl);
+
+        var unsubscribeAllUrl = _uriTemplates.GetUnsubscribeAllUrl(recipient);
+        def.Replacements.Add(EmailPlaceholders.UnsubscribeAllLink, unsubscribeAllUrl);
+
+        var manageSubUrl = _uriTemplates.GetManageMySubscriptionUrl(subscriptionId);
+        def.Replacements.Add(EmailPlaceholders.ManageMySubscriptionLink, manageSubUrl);
 
         return def;
     }
