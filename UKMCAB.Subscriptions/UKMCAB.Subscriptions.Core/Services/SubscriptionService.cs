@@ -219,9 +219,6 @@ public class SubscriptionService : ISubscriptionService, IClearable
             await _repositories.Subscriptions.UpsertAsync(e).ConfigureAwait(false);
             await _repositories.Telemetry.TrackByEmailAddressAsync(e.EmailAddress, $"Confirmed search subscription ({key})");
 
-            var email = _emailTemplatesService.GetSubscribedSearchEmailDefinition(options.EmailAddress, e.GetKeys(), options.SearchQueryString);
-            await _outboundEmailSender.SendAsync(email).ConfigureAwait(false);
-
             return new ConfirmSubscriptionResult(key, validation);
         }
 
@@ -249,9 +246,6 @@ public class SubscriptionService : ISubscriptionService, IClearable
 
             await _repositories.Subscriptions.UpsertAsync(e).ConfigureAwait(false);
             await _repositories.Telemetry.TrackByEmailAddressAsync(e.EmailAddress, $"Confirmed cab subscription ({key})");
-
-            var email = _emailTemplatesService.GetSubscribedCabEmailDefinition(options.EmailAddress, e.GetKeys(), options.CabId);
-            await _outboundEmailSender.SendAsync(email).ConfigureAwait(false);
 
             return new ConfirmSubscriptionResult(key, validation);
         }

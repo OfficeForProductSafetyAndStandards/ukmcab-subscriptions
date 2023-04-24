@@ -14,6 +14,7 @@ public class SubscriptionEntity : ITableEntity
     public string EmailAddress { get; set; } = null!;
     public Frequency Frequency { get; set; }
     public Guid? CabId { get; set; }
+    public string? CabName { get; set; }
     public string? SearchQueryString { get; set; }
     public DateTime? DueBaseDate { get; set; }
     public string? LastThumbprint { get; set; }

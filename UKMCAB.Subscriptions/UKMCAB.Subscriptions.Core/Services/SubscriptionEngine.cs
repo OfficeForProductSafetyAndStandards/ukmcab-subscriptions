@@ -7,6 +7,7 @@ using UKMCAB.Subscriptions.Core.Data.Models;
 using UKMCAB.Subscriptions.Core.Domain.Emails;
 using UKMCAB.Subscriptions.Core.Integration.CabService;
 using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
+using static UKMCAB.Subscriptions.Core.Services.SubscriptionService;
 
 namespace UKMCAB.Subscriptions.Core.Services;
 
@@ -140,7 +141,11 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         subscription.DueBaseDate = _dateTimeProvider.UtcNow;
         await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
         await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
-        await _repositories.Telemetry.TrackAsync(subscription.GetKeys(), $"Initialised subscription with thumbprint '{subscription.LastThumbprint}' and blob '{subscription.BlobName}'").ConfigureAwait(false);   
+        await _repositories.Telemetry.TrackAsync(subscription.GetKeys(), $"Initialised subscription with thumbprint '{subscription.LastThumbprint}' and blob '{subscription.BlobName}'").ConfigureAwait(false);
+
+        // Send the "subscribed" notification
+        var email = _emailTemplatesService.GetSubscribedSearchEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), subscription.SearchQueryString);
+        await _outboundEmailSender.SendAsync(email).ConfigureAwait(false);
     }
 
     private async Task InitialiseCabSubscriptionAsync(SubscriptionEntity subscription)
@@ -152,11 +157,16 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         var data = await GetCabDataAsync(subscription.CabId!.Value) ?? throw new Exception("Cab data not found when initialising CAB subscription");
 
         subscription.LastThumbprint = data.Thumbprint;
+        subscription.CabName = data.Name;
         subscription.BlobName = subscription.CreateBlobName();
         subscription.DueBaseDate = _dateTimeProvider.UtcNow;
         await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
         await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
         await _repositories.Telemetry.TrackAsync(subscription.GetKeys(), $"Initialised subscription with thumbprint '{subscription.LastThumbprint}'").ConfigureAwait(false);
+
+        // Send the "subscribed" notification
+        var email = _emailTemplatesService.GetSubscribedCabEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), subscription.CabId!.Value, subscription.CabName);
+        await _outboundEmailSender.SendAsync(email).ConfigureAwait(false);
     }
 
     private async Task<Result> HandleDueSearchSubscription(SubscriptionEntity subscription)
@@ -179,12 +189,10 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
             {
                 await _blobs.DeleteBlobIfExistsAsync(subscription.BlobName).ConfigureAwait(false);
             }
+
             subscription.LastThumbprint = data.Thumbprint;
             subscription.DueBaseDate = _dateTimeProvider.UtcNow;
             await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
-
-            await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),
-                $"Notified subscription: Search updated. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
 
             try
             {
@@ -231,19 +239,17 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
 
             subscription.LastThumbprint = data.Thumbprint;
             subscription.DueBaseDate = _dateTimeProvider.UtcNow;
+            subscription.CabName = data.Name;
 
             await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
 
-            await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),
-                $"Notified subscription: CAB updated. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
-
             try
             {
-                var email = _emailTemplatesService.GetCabUpdatedEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), cabId);
+                var email = _emailTemplatesService.GetCabUpdatedEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), cabId, subscription.CabName!);
                 await _outboundEmailSender.SendAsync(email).ConfigureAwait(false);
                 await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
                 await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),
-                    $"Notified subscription: Search updated. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
+                    $"Notified subscription: Cab updated  '{subscription.CabName}'. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
                 rv = Result.Notified;
             }
             catch (Exception ex)
@@ -256,9 +262,10 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         return rv;
     }
 
-    record Data(string Thumbprint, string Json);
+    record SearchData(string Thumbprint, string Json);
+    record CabData(string Name, string Thumbprint, string Json);
 
-    private async Task<Data> GetSearchResultDataAsync(string? searchQueryString)
+    private async Task<SearchData> GetSearchResultDataAsync(string? searchQueryString)
     {
         var results = (await _cabService.SearchAsync(searchQueryString)) ?? throw new Exception("Search returned null");
         results = results with { Results = results.Results.OrderBy(x => x.CabId).ToList() };
@@ -267,14 +274,14 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         return new(thumbprint, json);
     }
 
-    private async Task<Data?> GetCabDataAsync(Guid id)
+    private async Task<CabData?> GetCabDataAsync(Guid id)
     {
         var cab = await _cabService.GetAsync(id);
         if(cab != null)
         {
             var json = JsonSerializer.Serialize(cab, new JsonSerializerOptions { WriteIndented = false }) ?? throw new Exception("Serializing cab returned null");
             var thumbprint = json.Md5() ?? throw new Exception("MD5 hashing returned null");
-            return new(thumbprint, json);
+            return new(cab.Name ?? string.Empty, thumbprint, json);
         }
         else
         {

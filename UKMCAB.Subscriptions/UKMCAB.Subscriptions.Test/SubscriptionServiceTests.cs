@@ -26,8 +26,8 @@ public class SubscriptionServiceTests
             ConfirmUpdateEmailAddressTemplateId = "3",
             CabUpdatedTemplateId = "4",
             SearchUpdatedTemplateId = "5",
-SubscribedCabNotificationTemplateId ="6",            
-SubscribedSearchNotificationTemplateId="7",            
+            SubscribedCabNotificationTemplateId = "6",
+            SubscribedSearchNotificationTemplateId = "7",
         },
         UriTemplateOptions = new Core.Domain.Emails.Uris.UriTemplateOptions
         {
@@ -86,8 +86,9 @@ SubscribedSearchNotificationTemplateId="7",
         Assert.That(r2.ValidationResult, Is.EqualTo(ValidationResult.Success));
         Assert.That(r2.Id, Is.Not.Null);
 
-        var email = _outboundEmailSender.Requests.FirstOrDefault();
-        Assert.That(email, Is.Not.Null);
+        // not sending 'subscribeD' notifications here now
+        //var email = _outboundEmailSender.Requests.FirstOrDefault();
+        //Assert.That(email, Is.Not.Null);
 
         var r3 = await subs.ConfirmSearchSubscriptionAsync(confirmationPayload);
         Assert.That(r3.ValidationResult, Is.EqualTo(ValidationResult.AlreadySubscribed));
@@ -253,8 +254,9 @@ SubscribedSearchNotificationTemplateId="7",
         Assert.That(confirmSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
         Assert.That(confirmSubscriptionResult.Id, Is.Not.Null);
 
-        var email = _outboundEmailSender.Requests.FirstOrDefault();
-        Assert.That(email, Is.Not.Null);
+        // not sending 'subscribeD' notifications here now
+        //var email = _outboundEmailSender.Requests.FirstOrDefault();
+        //Assert.That(email, Is.Not.Null);
 
         var subscription = await subs.GetSubscriptionAsync(confirmSubscriptionResult.Id);
         Assert.That(subscription, Is.Not.Null);

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using UKMCAB.Subscriptions.Core;
 using UKMCAB.Subscriptions.Core.Domain;
+using UKMCAB.Subscriptions.Core.Domain.Emails;
 using UKMCAB.Subscriptions.Core.Integration.CabService;
 using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
 using UKMCAB.Subscriptions.Core.Services;
@@ -59,13 +60,14 @@ public class SubscriptionEngineTests
         var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
         Assert.Multiple(() =>
         {
-            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(0));
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(1));
             Assert.That(result.Notified, Is.EqualTo(0));
             Assert.That(result.Initialised, Is.EqualTo(1));
             Assert.That(result.Errors, Is.EqualTo(0));
             Assert.That(result.NoChange, Is.EqualTo(0));
             Assert.That(result.NotDue, Is.EqualTo(0));
         });
+        _outboundEmailSender.Requests.Clear();
 
         // process again (nothing has changed)
         result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
@@ -116,7 +118,7 @@ public class SubscriptionEngineTests
 
         _cabService.Inject(new CabApiService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" } }));
         var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
-        Assertions(result, init: 1);
+        Assertions(result, init: 1, emailSentCount: 1);
         
         result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
         Assertions(result, notdue: 1);
@@ -166,7 +168,8 @@ public class SubscriptionEngineTests
 
         _cabService.Inject(new CabApiService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" } }));
         var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
-        Assertions(result, init: 1);
+        Assertions(result, init: 1, emailSentCount: 1);
+        _outboundEmailSender.Requests.Clear();
 
         result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
         Assertions(result, notdue: 1);
@@ -241,13 +244,15 @@ public class SubscriptionEngineTests
         var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
         Assert.Multiple(() =>
         {
-            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(0));
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(1)); // subscribed email notification sent.
             Assert.That(result.Notified, Is.EqualTo(0));
             Assert.That(result.Initialised, Is.EqualTo(1));
             Assert.That(result.Errors, Is.EqualTo(0));
             Assert.That(result.NoChange, Is.EqualTo(0));
             Assert.That(result.NotDue, Is.EqualTo(0));
         });
+        Assert.That(_outboundEmailSender.Requests.Last().Replacements.GetValueOrDefault(EmailPlaceholders.CabName), Is.EqualTo("Bob"));
+        _outboundEmailSender.Requests.Clear();
 
         // process again (nothing has changed)
         result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
@@ -273,6 +278,7 @@ public class SubscriptionEngineTests
             Assert.That(result.NoChange, Is.EqualTo(0));
             Assert.That(result.NotDue, Is.EqualTo(0));
         });
+        Assert.That(_outboundEmailSender.Requests.Last().Replacements.GetValueOrDefault(EmailPlaceholders.CabName), Is.EqualTo("Bob2"));
         _outboundEmailSender.Requests.Clear();
 
 

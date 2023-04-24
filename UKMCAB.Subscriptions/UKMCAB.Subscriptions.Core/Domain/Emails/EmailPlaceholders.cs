@@ -8,4 +8,5 @@ public static class EmailPlaceholders
     public static string UnsubscribeAllLink { get; set; } = "unsubscribe_all_link";
     public static string ViewCabLink { get; set; } = "view_cab_link";
     public static string ViewSearchLink { get; set; } = "view_search_link";
+    public static string CabName { get; set; } = "cab_name";
 }

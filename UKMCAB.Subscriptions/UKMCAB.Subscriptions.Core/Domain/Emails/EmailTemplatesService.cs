@@ -6,12 +6,12 @@ public interface IEmailTemplatesService
 {
     void AssertIsUriTemplateOptionsConfigured();
     void Configure(UriTemplateOptions uriTemplateOptions);
-    EmailDefinition GetCabUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId);
+    EmailDefinition GetCabUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId, string cabName);
     EmailDefinition GetConfirmCabSubscriptionEmailDefinition(EmailAddress recipient, string token);
     EmailDefinition GetConfirmSearchSubscriptionEmailDefinition(EmailAddress recipient, string token);
     EmailDefinition GetConfirmUpdateEmailAddressEmailDefinition(EmailAddress recipient, string token);
     EmailDefinition GetSearchUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, string? query);
-    EmailDefinition GetSubscribedCabEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId);
+    EmailDefinition GetSubscribedCabEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId, string cabName);
     EmailDefinition GetSubscribedSearchEmailDefinition(EmailAddress recipient, string subscriptionId, string? query);
     bool IsConfigured();
 }
@@ -102,7 +102,7 @@ public class EmailTemplatesService : IEmailTemplatesService
     }
 
 
-    public EmailDefinition GetCabUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId)
+    public EmailDefinition GetCabUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId, string cabName)
     {
         AssertIsUriTemplateOptionsConfigured();
 
@@ -110,6 +110,8 @@ public class EmailTemplatesService : IEmailTemplatesService
 
         var cabDetailsUrl = _uriTemplates!.GetCabDetailsUrl(cabId);
         def.Replacements.Add(EmailPlaceholders.ViewCabLink, cabDetailsUrl);
+
+        def.Replacements.Add(EmailPlaceholders.CabName, cabName);
 
         var unsubscribeUrl = _uriTemplates.GetUnsubscribeUrl(subscriptionId);
         def.Replacements.Add(EmailPlaceholders.UnsubscribeLink, unsubscribeUrl);
@@ -148,7 +150,7 @@ public class EmailTemplatesService : IEmailTemplatesService
 
 
 
-    public EmailDefinition GetSubscribedCabEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId)
+    public EmailDefinition GetSubscribedCabEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId, string cabName)
     {
         AssertIsUriTemplateOptionsConfigured();
 
@@ -156,6 +158,8 @@ public class EmailTemplatesService : IEmailTemplatesService
 
         var cabDetailsUrl = _uriTemplates!.GetCabDetailsUrl(cabId);
         def.Replacements.Add(EmailPlaceholders.ViewCabLink, cabDetailsUrl);
+
+        def.Replacements.Add(EmailPlaceholders.CabName, cabName);
 
         var unsubscribeUrl = _uriTemplates.GetUnsubscribeUrl(subscriptionId);
         def.Replacements.Add(EmailPlaceholders.UnsubscribeLink, unsubscribeUrl);
