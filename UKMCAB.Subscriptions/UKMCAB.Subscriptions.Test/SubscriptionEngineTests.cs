@@ -235,7 +235,7 @@ public class SubscriptionEngineTests
 
         var confirmSubscriptionResult = await _subs.ConfirmCabSubscriptionAsync(requestSubscriptionResult.Token ?? throw new Exception("Token should not be null"));
         Assert.That(confirmSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
-        Assert.That(confirmSubscriptionResult.Id, Is.Not.Null);
+        Assert.That(confirmSubscriptionResult.SubscriptionId, Is.Not.Null);
         _outboundEmailSender.Requests.Clear();
 
 
@@ -312,7 +312,7 @@ public class SubscriptionEngineTests
         Assert.Multiple(() =>
         {
             Assert.That(confirmSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
-            Assert.That(confirmSubscriptionResult.Id, Is.Not.Null);
+            Assert.That(confirmSubscriptionResult.SubscriptionId, Is.Not.Null);
         });
 
         _outboundEmailSender.Requests.Clear();

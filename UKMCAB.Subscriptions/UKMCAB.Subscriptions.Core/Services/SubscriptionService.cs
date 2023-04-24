@@ -1,6 +1,4 @@
-﻿using Azure.Core;
-using Microsoft.Extensions.Logging;
-using UKMCAB.Subscriptions.Core.Common;
+﻿using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Common.Security;
 using UKMCAB.Subscriptions.Core.Common.Security.Tokens;
 using UKMCAB.Subscriptions.Core.Data;
@@ -21,14 +19,14 @@ public interface ISubscriptionService
     /// </summary>
     /// <param name="payload"></param>
     /// <returns></returns>
-    Task<ConfirmSubscriptionResult> ConfirmSearchSubscriptionAsync(string payload);
+    Task<ConfirmSearchSubscriptionResult> ConfirmSearchSubscriptionAsync(string payload);
 
     /// <summary>
     /// Confirms a requested cab subscription.
     /// </summary>
     /// <param name="payload"></param>
     /// <returns></returns>
-    Task<ConfirmSubscriptionResult> ConfirmCabSubscriptionAsync(string payload);
+    Task<ConfirmCabSubscriptionResult> ConfirmCabSubscriptionAsync(string payload);
 
     /// <summary>
     /// Requests a subscription to a search.  The user will be emailed with a confirmation link which they need to click on to activate/confirm the subscription.
@@ -114,7 +112,7 @@ public interface ISubscriptionService
     /// </summary>
     /// <param name="subscriptionId"></param>
     /// <returns></returns>
-    Task<Subscription?> GetSubscriptionAsync(string subscriptionId);
+    Task<SubscriptionModel?> GetSubscriptionAsync(string subscriptionId);
 
     /// <summary>
     /// Lists all subscriptions that belong to an email address
@@ -195,10 +193,10 @@ public class SubscriptionService : ISubscriptionService, IClearable
         return new(validation, null);
     }
 
-    public record ConfirmSubscriptionResult(string? Id, ValidationResult ValidationResult);
+    public record ConfirmSearchSubscriptionResult(string? SubscriptionId, SearchSubscriptionRequest SearchSubscriptionRequest, ValidationResult ValidationResult);
 
     /// <inheritdoc />
-    public async Task<ConfirmSubscriptionResult> ConfirmSearchSubscriptionAsync(string payload)
+    public async Task<ConfirmSearchSubscriptionResult> ConfirmSearchSubscriptionAsync(string payload)
     {
         var parsed = _secureTokenProcessor.Disclose<ExpiringToken<SearchSubscriptionRequest>>(payload);
         var options = parsed?.GetAndValidate() ?? throw new Exception("The incoming payload was unparseable");
@@ -219,14 +217,16 @@ public class SubscriptionService : ISubscriptionService, IClearable
             await _repositories.Subscriptions.UpsertAsync(e).ConfigureAwait(false);
             await _repositories.Telemetry.TrackByEmailAddressAsync(e.EmailAddress, $"Confirmed search subscription ({key})");
 
-            return new ConfirmSubscriptionResult(key, validation);
+            return new ConfirmSearchSubscriptionResult(key, options, validation);
         }
 
-        return new ConfirmSubscriptionResult(null, validation);
+        return new ConfirmSearchSubscriptionResult(null, options, validation);
     }
 
 
-    public async Task<ConfirmSubscriptionResult> ConfirmCabSubscriptionAsync(string payload)
+    public record ConfirmCabSubscriptionResult(string? SubscriptionId, CabSubscriptionRequest CabSubscriptionRequest, ValidationResult ValidationResult);
+
+    public async Task<ConfirmCabSubscriptionResult> ConfirmCabSubscriptionAsync(string payload)
     {
         var parsed = _secureTokenProcessor.Disclose<ExpiringToken<CabSubscriptionRequest>>(payload);
         var options = parsed?.GetAndValidate() ?? throw new Exception("The incoming payload was unparseable");
@@ -247,10 +247,10 @@ public class SubscriptionService : ISubscriptionService, IClearable
             await _repositories.Subscriptions.UpsertAsync(e).ConfigureAwait(false);
             await _repositories.Telemetry.TrackByEmailAddressAsync(e.EmailAddress, $"Confirmed cab subscription ({key})");
 
-            return new ConfirmSubscriptionResult(key, validation);
+            return new ConfirmCabSubscriptionResult(key, options, validation);
         }
 
-        return new ConfirmSubscriptionResult(null, validation);
+        return new ConfirmCabSubscriptionResult(null, options, validation);
     }
 
 
@@ -347,22 +347,20 @@ public class SubscriptionService : ISubscriptionService, IClearable
         return count;
     }
 
-    public record ListSubscriptionsResult(IEnumerable<Subscription> Subscriptions, string? ContinuationToken = null);
+    public record ListSubscriptionsResult(IEnumerable<SubscriptionModel> Subscriptions, string? ContinuationToken = null);
 
     public async Task<ListSubscriptionsResult> ListSubscriptionsAsync(EmailAddress emailAddress, string? continuationToken = null, int? take = null)
     {
         var page = await (await (_repositories.Subscriptions.GetAllAsync(SubscriptionKey.CreatePartitionKey(emailAddress), continuationToken, take))).FirstAsync();
-        return new(page.Values.Select(x => new Subscription(x.GetKeys(), x.SubscriptionType, x.Frequency)).ToList(), page.ContinuationToken);
+        return new(page.Values.Select(x => new SubscriptionModel(x)).ToList(), page.ContinuationToken);
     }
 
-    public record Subscription(string Id, SubscriptionType SubscriptionType, Frequency Frequency );
-
-    public async Task<Subscription?> GetSubscriptionAsync(string subscriptionId)
+    public async Task<SubscriptionModel?> GetSubscriptionAsync(string subscriptionId)
     {
         var subscription = await _repositories.Subscriptions.GetAsync(new SubscriptionKey(subscriptionId));
         if (subscription != null)
         {
-            return new Subscription(subscriptionId, subscription.CabId.HasValue ? SubscriptionType.Cab : SubscriptionType.Search, subscription.Frequency);
+            return new SubscriptionModel(subscription);
         }
         else
         {
