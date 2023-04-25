@@ -108,6 +108,46 @@ public class SubscriptionEngineTests
             Assert.That(result.NotDue, Is.EqualTo(0));
         });
     }
+    
+    [Test]
+    public async Task ProcessSearchSubscribers_RealtimeFrequency_SpacesInUrl()
+    {
+        _datetime.UtcNow = new DateTime(1980, 7, 1);
+        await SubscribeToSearchAsync("test@test.com", "?Keywords=&RegisteredOfficeLocations=United+Kingdom", Frequency.Realtime);
+
+        // seed results
+        _cabService.Inject(new CabApiService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" } }));
+        var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(1));
+            Assert.That(result.Notified, Is.EqualTo(0));
+            Assert.That(result.Initialised, Is.EqualTo(1));
+            Assert.That(result.Errors, Is.EqualTo(0));
+            Assert.That(result.NoChange, Is.EqualTo(0));
+            Assert.That(result.NotDue, Is.EqualTo(0));
+        });
+        _outboundEmailSender.Requests.Clear();
+
+        // change results
+        _cabService.Inject(new CabApiService.SearchResults(1, new List<SubscriptionsCoreCabSearchResultModel> { new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob2" } }));
+        result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(1), "An email notification should have been sent");
+            Assert.That(result.Notified, Is.EqualTo(1));
+            Assert.That(result.Initialised, Is.EqualTo(0));
+            Assert.That(result.Errors, Is.EqualTo(0));
+            Assert.That(result.NoChange, Is.EqualTo(0));
+            Assert.That(result.NotDue, Is.EqualTo(0));
+        });
+
+        var last = _outboundEmailSender.Requests.LastOrDefault();
+
+        var viewSearchResultsLink = last.Replacements[EmailPlaceholders.ViewSearchLink];
+
+        Assert.That(viewSearchResultsLink, Does.Not.Contain(" "));
+    }
 
 
     [Test]

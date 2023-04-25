@@ -205,7 +205,8 @@ public class SubscriptionService : ISubscriptionService, IClearable
 
         if (validation == ValidationResult.Success)
         {
-            var key = new SubscriptionKey(options.EmailAddress, SearchQueryString.Process(options.SearchQueryString, _options));
+            var cleansedSearchQueryString = SearchQueryString.Process(options.SearchQueryString, _options);
+            var key = new SubscriptionKey(options.EmailAddress, cleansedSearchQueryString);
 
             var e = new SubscriptionEntity(key)
             {

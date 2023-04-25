@@ -1,4 +1,6 @@
-﻿namespace UKMCAB.Subscriptions.Core.Domain.Emails.Uris;
+﻿using UKMCAB.Subscriptions.Core.Common;
+
+namespace UKMCAB.Subscriptions.Core.Domain.Emails.Uris;
 
 public class UriTemplates
 {
@@ -53,12 +55,9 @@ public class UriTemplates
 
     public string GetSearchUrl(string? query)
     {
-        var uriBuilder = new UriBuilder(_uriConverter.Make(_search.RelativeUrl))
-        {
-            Query = query?.TrimStart('?')
-        };
-        var url = uriBuilder.Uri.ToString();
-        return url;
+        var url = _uriConverter.Make(_search.RelativeUrl);
+        var retVal = string.Concat(url.TrimEnd('?'), query?.EnsureStartsWith("?") ?? "");
+        return retVal;
     }
 
     public string GetCabDetailsUrl(Guid cabId)
