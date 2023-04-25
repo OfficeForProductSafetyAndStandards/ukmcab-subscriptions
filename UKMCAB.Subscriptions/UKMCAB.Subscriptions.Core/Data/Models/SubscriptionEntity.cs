@@ -2,6 +2,7 @@
 using Azure.Data.Tables;
 using System.Runtime.Serialization;
 using UKMCAB.Subscriptions.Core.Domain;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace UKMCAB.Subscriptions.Core.Data.Models;
 
@@ -20,11 +21,6 @@ public class SubscriptionEntity : ITableEntity
     public string? LastThumbprint { get; set; }
     public string? BlobName { get; set; }
 
-
-    private const string _defaultThumbprint = "no_thumbprint";
-    public string CreateBlobName(string thumbprint) => $"{GetKeys()}-{thumbprint ?? _defaultThumbprint}.json";
-    public string CreateBlobName() => CreateBlobName(LastThumbprint ?? _defaultThumbprint);
-
     public DateTime? GetNextDueDate(IDateTimeProvider dateTimeProvider) => Frequency switch
     {
         Frequency.Realtime => dateTimeProvider.UtcNow.AddMinutes(-1),
@@ -40,15 +36,13 @@ public class SubscriptionEntity : ITableEntity
     [IgnoreDataMember]
     public SubscriptionType SubscriptionType => CabId.HasValue ? SubscriptionType.Cab : SubscriptionType.Search;
 
-    public SubscriptionEntity()
-    {
-        
-    }
+    public SubscriptionEntity() { }
 
     public SubscriptionEntity(Keys keys)
     {
         PartitionKey = keys.PartitionKey;
         RowKey = keys.RowKey;
+        BlobName = $"{Guid.NewGuid()}.json";
     }
 
     public void SetKeys(Keys keys)

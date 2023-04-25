@@ -138,9 +138,9 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         var data = await GetSearchResultDataAsync(subscription.SearchQueryString);
 
         subscription.LastThumbprint = data.Thumbprint;
-        subscription.BlobName = subscription.CreateBlobName();
         subscription.DueBaseDate = _dateTimeProvider.UtcNow;
-        await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
+        
+        await _blobs.GetBlobClient(subscription.BlobName).UploadAsync(new BinaryData(data.Json), true).ConfigureAwait(false);
         await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
         await _repositories.Telemetry.TrackAsync(subscription.GetKeys(), $"Initialised subscription with thumbprint '{subscription.LastThumbprint}' and blob '{subscription.BlobName}'").ConfigureAwait(false);
 
@@ -159,9 +159,9 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
 
         subscription.LastThumbprint = data.Thumbprint;
         subscription.CabName = data.Name;
-        subscription.BlobName = subscription.CreateBlobName();
         subscription.DueBaseDate = _dateTimeProvider.UtcNow;
-        await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
+
+        await _blobs.GetBlobClient(subscription.BlobName).UploadAsync(new BinaryData(data.Json), true).ConfigureAwait(false);
         await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
         await _repositories.Telemetry.TrackAsync(subscription.GetKeys(), $"Initialised subscription with thumbprint '{subscription.LastThumbprint}'").ConfigureAwait(false);
 
@@ -186,14 +186,10 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
                 subscription.BlobName,
             };
 
-            if (subscription.BlobName != null)
-            {
-                await _blobs.DeleteBlobIfExistsAsync(subscription.BlobName).ConfigureAwait(false);
-            }
-
             subscription.LastThumbprint = data.Thumbprint;
             subscription.DueBaseDate = _dateTimeProvider.UtcNow;
-            await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
+
+            await _blobs.GetBlobClient(subscription.BlobName).UploadAsync(new BinaryData(data.Json), true).ConfigureAwait(false);
 
             try
             {
@@ -233,16 +229,11 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
                 subscription.BlobName,
             };
 
-            if (subscription.BlobName != null)
-            {
-                await _blobs.DeleteBlobIfExistsAsync(subscription.BlobName).ConfigureAwait(false);
-            }
-
             subscription.LastThumbprint = data.Thumbprint;
             subscription.DueBaseDate = _dateTimeProvider.UtcNow;
             subscription.CabName = data.Name;
 
-            await _blobs.UploadBlobAsync(subscription.BlobName, new BinaryData(data.Json)).ConfigureAwait(false);
+            await _blobs.GetBlobClient(subscription.BlobName).UploadAsync(new BinaryData(data.Json), true).ConfigureAwait(false);
 
             try
             {

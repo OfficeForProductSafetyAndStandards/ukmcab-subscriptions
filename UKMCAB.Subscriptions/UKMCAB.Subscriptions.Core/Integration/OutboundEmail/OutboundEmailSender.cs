@@ -48,7 +48,8 @@ public class OutboundEmailSender : IOutboundEmailSender
         if (Mode == OutboundEmailSenderMode.Send)
         {
             var replacements = emailDefinition.Replacements.ToDictionary(x => x.Key, x => x.Value as dynamic);
-            await _client.SendEmailAsync(emailDefinition.Recipient, emailDefinition.TemplateId, replacements);
+            var response  = await _client.SendEmailAsync(emailDefinition.Recipient, emailDefinition.TemplateId, replacements);
+            
         }
 
         if (Requests.Count > 20)
