@@ -59,7 +59,7 @@ public class UriTemplates
     {
         var url = _uriConverter.Make(_searchChangesSummary.RelativeUrl)
             .Replace(_searchChangesSummary.SubscriptionIdPlaceholder, subscriptionId)
-            .Replace(_searchChangesSummary.ChangeDescriptorIdPlaceholder, subscriptionId);
+            .Replace(_searchChangesSummary.ChangeDescriptorIdPlaceholder, changeDescriptorId);
         return url;
     }
 
