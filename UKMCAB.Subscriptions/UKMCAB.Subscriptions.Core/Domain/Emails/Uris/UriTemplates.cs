@@ -10,6 +10,7 @@ public class UriTemplates
     private readonly ConfirmationUriTemplateOptions _confirmCabSubscription;
     private readonly ConfirmationUriTemplateOptions _confirmUpdateEmailAddress;
     private readonly SubscriptionUriTemplateOptions _manageSubscription;
+    private readonly SearchUpdatedChangesSummaryUriTemplateOptions _searchChangesSummary;
     private readonly SearchUriTemplateOptions _search;
     private readonly ViewCabUriTemplateOptions _cabDetails;
     private readonly SubscriptionUriTemplateOptions _unsubscribe;
@@ -26,6 +27,7 @@ public class UriTemplates
         _cabDetails = options.CabDetails ?? throw new UriTemplatesNotConfiguredException($"{nameof(options.CabDetails)} not set");
         _unsubscribe = options.Unsubscribe ?? throw new UriTemplatesNotConfiguredException($"{nameof(options.Unsubscribe)} not set");
         _unsubscribeAll = options.UnsubscribeAll ?? throw new UriTemplatesNotConfiguredException($"{nameof(options.UnsubscribeAll)} not set");
+        _searchChangesSummary = options.SearchChangesSummary ?? throw new UriTemplatesNotConfiguredException($"{nameof(options.SearchChangesSummary)} not set");
     }
 
     public string GetConfirmSearchSubscriptionUrl(string token)
@@ -50,6 +52,14 @@ public class UriTemplates
     public string GetManageMySubscriptionUrl(string subscriptionId)
     {
         var url = _uriConverter.Make(_manageSubscription.RelativeUrl).Replace(_manageSubscription.SubscriptionIdPlaceholder, subscriptionId);
+        return url;
+    }
+
+    public string GetSearchChangesSummaryUrl(string subscriptionId, string changeDescriptorId)
+    {
+        var url = _uriConverter.Make(_searchChangesSummary.RelativeUrl)
+            .Replace(_searchChangesSummary.SubscriptionIdPlaceholder, subscriptionId)
+            .Replace(_searchChangesSummary.ChangeDescriptorIdPlaceholder, subscriptionId);
         return url;
     }
 

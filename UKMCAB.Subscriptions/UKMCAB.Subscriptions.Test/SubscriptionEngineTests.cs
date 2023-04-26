@@ -336,7 +336,59 @@ public class SubscriptionEngineTests
     }
 
 
+    [Test]
+    public async Task ProcessSearchSubscribers_Realtime_ChangesSummary()
+    {
+        _datetime.UtcNow = new DateTime(1980, 7, 1);
+        await SubscribeToSearchAsync("test@test.com", "?name=bob", Frequency.Realtime);
 
+        var results = new
+        {
+            bob = new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" },
+            rob = new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Rob" },
+            sid = new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Sid" },
+        };
+
+        var resultList = new List<SubscriptionsCoreCabSearchResultModel>(new[] { results.bob, results.rob });
+
+        // seed results
+        _cabService.Inject(new CabApiService.SearchResults(1, resultList));
+        var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(1));
+            Assert.That(result.Initialised, Is.EqualTo(1));
+        });
+        _outboundEmailSender.Requests.Clear();
+
+
+        // change results
+        resultList.Remove(results.bob);
+        resultList.Add(results.sid);
+        results.rob.Name = "Robert";
+
+        
+        result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(1), "An email notification should have been sent");
+            Assert.That(result.Notified, Is.EqualTo(1));
+            Assert.That(result.Initialised, Is.EqualTo(0));
+            Assert.That(result.Errors, Is.EqualTo(0));
+            Assert.That(result.NoChange, Is.EqualTo(0));
+            Assert.That(result.NotDue, Is.EqualTo(0));
+        });
+
+        var cdid = _outboundEmailSender.GetLastMetaItem("changeDescriptorId");
+        Assert.That(cdid, Is.Not.Null); 
+
+        var changes = await _subs.GetSearchResultsChangesAsync(cdid).ConfigureAwait(false);
+        Assert.That(changes.Added.Count, Is.EqualTo(1), "One item should have been added (sid)");  
+        Assert.That(changes.Removed.Count, Is.EqualTo(1), "One item should have been removed (bob)");  
+        Assert.That(changes.Modified.Count, Is.EqualTo(1), "One item should have been changed (rob->Robert)");  
+
+        _outboundEmailSender.Requests.Clear();
+    }
 
 
 

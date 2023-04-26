@@ -1,5 +1,4 @@
 ﻿using Azure.Storage.Blobs;
-using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using UKMCAB.Subscriptions.Core.Common;
 using UKMCAB.Subscriptions.Core.Data;
@@ -8,7 +7,6 @@ using UKMCAB.Subscriptions.Core.Domain;
 using UKMCAB.Subscriptions.Core.Domain.Emails;
 using UKMCAB.Subscriptions.Core.Integration.CabService;
 using UKMCAB.Subscriptions.Core.Integration.OutboundEmail;
-using static UKMCAB.Subscriptions.Core.Services.SubscriptionService;
 
 namespace UKMCAB.Subscriptions.Core.Services;
 
@@ -40,7 +38,7 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         _dateTimeProvider = dateTimeProvider;
         _cabService = cabService;
         _emailTemplatesService = emailTemplatesService;
-        _blobs = new BlobContainerClient(_options.DataConnectionString, $"{SubscriptionsCoreServicesOptions.BlobContainerPrefix}snapshots");
+        _blobs = BlobContainerSnapshots.Create(_options.DataConnectionString);
         _options.EmailTemplates.Validate();
     }
 
@@ -180,24 +178,25 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         
         if (subscription.LastThumbprint.DoesNotEqual(data.Thumbprint, StringComparison.Ordinal)) // search results have changed.
         {
-            var old = new
-            {
-                subscription.LastThumbprint,
-                subscription.BlobName,
-            };
+            var blobClient = _blobs.GetBlobClient(subscription.BlobName);
+            var content = await blobClient.DownloadContentAsync();
+            var previousResults = content.Value.Content.ToObjectFromJson<List<SubscriptionsCoreCabSearchResultModel>>();
+            var changes = new SearchResultsChangesModel(previousResults, data.Results);
+            var changesBlobName = string.Concat(Guid.NewGuid(), ".json");
+            await _blobs.GetBlobClient(changesBlobName).UploadAsync(new BinaryData(changes)).ConfigureAwait(false);
 
-            subscription.LastThumbprint = data.Thumbprint;
+            var oldThumbprint = subscription.SetThumbprint(data.Thumbprint);
             subscription.DueBaseDate = _dateTimeProvider.UtcNow;
 
             await _blobs.GetBlobClient(subscription.BlobName).UploadAsync(new BinaryData(data.Json), true).ConfigureAwait(false);
 
             try
             {
-                var email = _emailTemplatesService.GetSearchUpdatedEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), subscription.SearchQueryString);
+                var email = _emailTemplatesService.GetSearchUpdatedEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), subscription.SearchQueryString, changesBlobName);
                 await _outboundEmailSender.SendAsync(email).ConfigureAwait(false);
                 await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
                 await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),
-                    $"Notified subscription: Search updated. (old:{old.LastThumbprint}; {old.BlobName}, new:{subscription.LastThumbprint}, {subscription.BlobName}) ").ConfigureAwait(false);
+                    $"Notified subscription: Search updated. (old:{oldThumbprint}, new:{subscription.LastThumbprint})").ConfigureAwait(false);
                 rv = Result.Notified;
             }
             catch (Exception ex)
@@ -254,16 +253,16 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         return rv;
     }
 
-    record SearchData(string Thumbprint, string Json);
+    record SearchData(string Thumbprint, string Json, List<SubscriptionsCoreCabSearchResultModel> Results);
     record CabData(string Name, string Thumbprint, string Json);
 
     private async Task<SearchData> GetSearchResultDataAsync(string? searchQueryString)
     {
-        var results = (await _cabService.SearchAsync(searchQueryString)) ?? throw new Exception("Search returned null");
-        results = results with { Results = results.Results.OrderBy(x => x.CabId).ToList() };
-        var json = JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = false }) ?? throw new Exception("Serializing search results returned null");
+        var searchResults = (await _cabService.SearchAsync(searchQueryString)) ?? throw new Exception("Search returned null");
+        var list = searchResults.Results.OrderBy(x => x.CabId).ToList();
+        var json = JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = false }) ?? throw new Exception("Serializing search results returned null");
         var thumbprint = json.Md5() ?? throw new Exception("MD5 hashing returned null");
-        return new(thumbprint, json);
+        return new(thumbprint, json, list);
     }
 
     private async Task<CabData?> GetCabDataAsync(Guid id)

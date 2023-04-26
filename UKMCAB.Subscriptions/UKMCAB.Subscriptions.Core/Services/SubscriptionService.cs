@@ -122,6 +122,7 @@ public interface ISubscriptionService
     /// <param name="take"></param>
     /// <returns></returns>
     Task<ListSubscriptionsResult> ListSubscriptionsAsync(EmailAddress emailAddress, string? continuationToken = null, int? take = null);
+    Task<SearchResultsChangesModel?> GetSearchResultsChangesAsync(string id);
 }
 
 public class SubscriptionService : ISubscriptionService, IClearable
@@ -398,6 +399,21 @@ public class SubscriptionService : ISubscriptionService, IClearable
         else
         {
             return false;
+        }
+    }
+
+    public async Task<SearchResultsChangesModel?> GetSearchResultsChangesAsync(string id)
+    {
+        var blobs = BlobContainerSnapshots.Create(_options.DataConnectionString);
+        var bc = blobs.GetBlobClient(id);
+        if (await bc.ExistsAsync())
+        {
+            var content = await bc.DownloadContentAsync();
+            return content.Value.Content.ToObjectFromJson<SearchResultsChangesModel?>();
+        }
+        else
+        {
+            return null;
         }
     }
 

@@ -38,6 +38,7 @@ public class SubscriptionServiceTests
             ConfirmUpdateEmailAddress = new Core.Domain.Emails.Uris.ConfirmationUriTemplateOptions("@token", "/subscriptions/update-email/confirm?tok=@token"),
             ManageSubscription = new Core.Domain.Emails.Uris.SubscriptionUriTemplateOptions("@subscriptionid", "/subscriptions/manage/@subscriptionid"),
             Search = new Core.Domain.Emails.Uris.SearchUriTemplateOptions("/search"),
+            SearchChangesSummary = new Core.Domain.Emails.Uris.SearchUpdatedChangesSummaryUriTemplateOptions("@subscriptionid", "@cdid", "/subscriptions/search/changes?changes=@cdid"),
             Unsubscribe = new Core.Domain.Emails.Uris.SubscriptionUriTemplateOptions("@subscriptionid", "/subscriptions/unsubscribe/@subscriptionid"),
             UnsubscribeAll = new Core.Domain.Emails.Uris.UnsubscribeAllUriTemplateOptions("@emailaddress", "/subscriptions/unsubscribe-all/@emailaddress"),
         },

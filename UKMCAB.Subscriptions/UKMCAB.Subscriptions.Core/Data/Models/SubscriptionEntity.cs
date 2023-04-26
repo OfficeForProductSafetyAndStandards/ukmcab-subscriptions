@@ -33,6 +33,13 @@ public class SubscriptionEntity : ITableEntity
 
     public bool IsInitialised() => LastThumbprint is not null;
 
+    public string? SetThumbprint(string thumbprint)
+    {
+        var rv = LastThumbprint;
+        LastThumbprint = thumbprint;
+        return rv;
+    }
+
     [IgnoreDataMember]
     public SubscriptionType SubscriptionType => CabId.HasValue ? SubscriptionType.Cab : SubscriptionType.Search;
 
