@@ -143,7 +143,7 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
         await _repositories.Telemetry.TrackAsync(subscription.GetKeys(), $"Initialised subscription with thumbprint '{subscription.LastThumbprint}' and blob '{subscription.BlobName}'").ConfigureAwait(false);
 
         // Send the "subscribed" notification
-        var email = _emailTemplatesService.GetSubscribedSearchEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), subscription.SearchQueryString);
+        var email = _emailTemplatesService.GetSubscribedSearchEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), subscription.SearchQueryString, subscription.GetSearchSubscriptionTopicName());
         await _outboundEmailSender.SendAsync(email).ConfigureAwait(false);
     }
 
@@ -192,7 +192,7 @@ public class SubscriptionEngine : ISubscriptionEngine, IClearable
 
             try
             {
-                var email = _emailTemplatesService.GetSearchUpdatedEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), subscription.SearchQueryString, changesBlobName);
+                var email = _emailTemplatesService.GetSearchUpdatedEmailDefinition(subscription.EmailAddress, subscription.GetKeys(), subscription.SearchQueryString, changesBlobName, subscription.GetSearchSubscriptionTopicName());
                 await _outboundEmailSender.SendAsync(email).ConfigureAwait(false);
                 await _repositories.Subscriptions.UpsertAsync(subscription).ConfigureAwait(false);
                 await _repositories.Telemetry.TrackAsync(subscription.GetKeys(),

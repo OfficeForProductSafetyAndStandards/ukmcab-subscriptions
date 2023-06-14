@@ -12,6 +12,7 @@ public class SubscriptionModel
         Frequency = entity.Frequency;
         
         SearchQueryString = entity.SearchQueryString;
+        SearchKeywords = entity.SearchKeywords;
         CabId = entity.CabId;
         CabName = entity.CabName;
         Timestamp = entity.Timestamp;
@@ -20,6 +21,7 @@ public class SubscriptionModel
     public string Id { get; }
     public SubscriptionType SubscriptionType { get; }
     public string? SearchQueryString { get; }
+    public string? SearchKeywords { get; }
     public Frequency Frequency { get; }
     public string EmailAddress { get; }
     public Guid? CabId { get; }

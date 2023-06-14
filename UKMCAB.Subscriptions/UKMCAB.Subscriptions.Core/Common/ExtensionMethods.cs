@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using UKMCAB.Subscriptions.Core.Common.Security;
+using UKMCAB.Subscriptions.Core.Data.Models;
 
 namespace UKMCAB.Subscriptions.Core.Common;
 
@@ -141,6 +142,8 @@ public static class ExtensionMethods
 
     public static string? PrependIf(this string? text, string prepender) => text.Clean() != null ? prepender + text : null;
 
+    public static string? SurroundIf(this string? text, string prepender, string appender) => text.PrependIf(prepender).AppendIf(appender);
+
     public static T? RemoveFirst<T>(this List<T> list, Predicate<T> predicate)
     {
         var item = list.Find(predicate);
@@ -203,4 +206,6 @@ public static class ExtensionMethods
     /// <param name="action"></param>
     /// <returns></returns>
     public static TOut Transform<T, TOut>(this T incoming, Func<T, TOut> action) => action(incoming);
+
+    public static string GetSearchSubscriptionTopicName(this SubscriptionEntity subscription) => $"UKMCAB search results{subscription.SearchKeywords.PrependIf(" for '").AppendIf("'")}";
 }

@@ -390,12 +390,55 @@ public class SubscriptionEngineTests
         _outboundEmailSender.Requests.Clear();
     }
 
-
-
-
-    private async Task SubscribeToSearchAsync(string email, string query, Frequency frequency)
+    [Test]
+    [TestCase("123456789", "UKMCAB search results for '123456789'")]
+    [TestCase(null, "UKMCAB search results")]
+    public async Task ProcessSearchSubscribers_Realtime_SearchTopicNameIsCorrect(string keywords, string expectedSearchTopicName)
     {
-        var req = new SearchSubscriptionRequest(email, query, frequency);
+        _datetime.UtcNow = new DateTime(1980, 7, 1);
+        await SubscribeToSearchAsync("test@test.com", "?name=bob", Frequency.Realtime, keywords);
+
+        var results = new
+        {
+            bob = new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Bob" },
+            rob = new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Rob" },
+            sid = new SubscriptionsCoreCabSearchResultModel { CabId = Guid.NewGuid(), Name = "Sid" },
+        };
+
+        var resultList = new List<SubscriptionsCoreCabSearchResultModel>(new[] { results.bob, results.rob });
+
+        // seed results
+        _cabService.Inject(new CabApiService.SearchResults(1, resultList));
+        var result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(1));
+            Assert.That(result.Initialised, Is.EqualTo(1));
+            Assert.That(_outboundEmailSender.Requests.First().Replacements.GetValueOrDefault(EmailPlaceholders.SearchTopicName), Is.EqualTo(expectedSearchTopicName));
+        });
+        _outboundEmailSender.Requests.Clear();
+
+
+        // change results
+        resultList.Remove(results.bob);
+        resultList.Add(results.sid);
+        results.rob.Name = "Robert";
+
+        // process subscriptions
+        result = await _eng.ProcessAsync(CancellationToken.None).ConfigureAwait(false);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_outboundEmailSender.Requests.Count, Is.EqualTo(1), "An email notification should have been sent");
+            Assert.That(result.Notified, Is.EqualTo(1));
+            Assert.That(_outboundEmailSender.Requests.First().Replacements.GetValueOrDefault(EmailPlaceholders.SearchTopicName), Is.EqualTo(expectedSearchTopicName));
+        });
+        _outboundEmailSender.Requests.Clear();
+    }
+
+
+    private async Task SubscribeToSearchAsync(string email, string query, Frequency frequency, string keywords = "test")
+    {
+        var req = new SearchSubscriptionRequest(email, query, frequency, keywords);
 
         var requestSubscriptionResult = await _subs.RequestSubscriptionAsync(req);
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));

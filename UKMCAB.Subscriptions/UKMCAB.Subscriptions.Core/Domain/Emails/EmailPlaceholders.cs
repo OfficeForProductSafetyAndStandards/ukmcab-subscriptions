@@ -10,4 +10,5 @@ public static class EmailPlaceholders
     public static string ViewSearchLink { get; set; } = "view_search_link";
     public static string ViewSearchChangesSummaryLink { get; set; } = "view_search_changes_summary";
     public static string CabName { get; set; } = "cab_name";
+    public static string SearchTopicName { get; set; } = "search_topic_name";
 }

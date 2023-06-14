@@ -74,7 +74,7 @@ public class SubscriptionServiceTests
     [TestCase(null)]
     public async Task Subscribe_Search(string searchQueryString)
     {
-        var req = new SearchSubscriptionRequest("test@test.com", searchQueryString, Frequency.Realtime);
+        var req = new SearchSubscriptionRequest("test@test.com", searchQueryString, Frequency.Realtime, "_keywords_");
 
         var subs = _services.GetRequiredService<ISubscriptionService>();
         var r1 = await subs.RequestSubscriptionAsync(req);
@@ -113,7 +113,7 @@ public class SubscriptionServiceTests
     [TestCase("a=b&a=c&d=e&f=g&g=h", "?a=b&a=c&d=e&f=g&g=h&", "&d=e&f=g&a=b&a=c&g=h", "&g=h&a=c&d=e&f=g&a=b&page=18", "&g=h&a=c&d=e&f=g&a=b&page=1")]
     public async Task Subscribe_Search_Already_Subscrbd(string searchQueryString, params string[] equivs)
     {
-        var req = new SearchSubscriptionRequest("test@test.com", searchQueryString, Frequency.Realtime);
+        var req = new SearchSubscriptionRequest("test@test.com", searchQueryString, Frequency.Realtime, "_keywords_");
         var subs = _services.GetRequiredService<ISubscriptionService>();
         var r1 = await subs.RequestSubscriptionAsync(req);
         Assert.That(r1.ValidationResult, Is.EqualTo(ValidationResult.Success));
@@ -125,7 +125,7 @@ public class SubscriptionServiceTests
 
         foreach ( var equiv in equivs )
         {
-            var reqn = new SearchSubscriptionRequest(req.EmailAddress, equiv, Frequency.Realtime);
+            var reqn = new SearchSubscriptionRequest(req.EmailAddress, equiv, Frequency.Realtime, "_keywords_");
             var rn = await subs.RequestSubscriptionAsync(reqn);
             Assert.That(rn.ValidationResult, Is.EqualTo(ValidationResult.AlreadySubscribed));
         }
@@ -207,7 +207,7 @@ public class SubscriptionServiceTests
         var subs = _services.GetRequiredService<ISubscriptionService>();
 
         // Request subscription
-        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new SearchSubscriptionRequest("test@test.com", "", Frequency.Daily));
+        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new SearchSubscriptionRequest("test@test.com", "", Frequency.Daily, "_keywords_"));
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
         
         // Confirm subscription
@@ -295,7 +295,7 @@ public class SubscriptionServiceTests
 
     private async Task<ConfirmSearchSubscriptionResult> SubscribeSearchAsync(ISubscriptionService subs, string email, string query)
     {
-        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new SearchSubscriptionRequest(email, query, Frequency.Daily));
+        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new SearchSubscriptionRequest(email, query, Frequency.Daily, "_keywords_"));
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
         var confirmSearchSubscriptionResult = await subs.ConfirmSearchSubscriptionAsync(requestSubscriptionResult.Token);
         Assert.That(confirmSearchSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));

@@ -10,9 +10,9 @@ public interface IEmailTemplatesService
     EmailDefinition GetConfirmCabSubscriptionEmailDefinition(EmailAddress recipient, string token);
     EmailDefinition GetConfirmSearchSubscriptionEmailDefinition(EmailAddress recipient, string token);
     EmailDefinition GetConfirmUpdateEmailAddressEmailDefinition(EmailAddress recipient, string token);
-    EmailDefinition GetSearchUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, string? query, string changeDescriptorId);
+    EmailDefinition GetSearchUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, string? query, string changeDescriptorId, string searchTopicName);
     EmailDefinition GetSubscribedCabEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId, string cabName);
-    EmailDefinition GetSubscribedSearchEmailDefinition(EmailAddress recipient, string subscriptionId, string? query);
+    EmailDefinition GetSubscribedSearchEmailDefinition(EmailAddress recipient, string subscriptionId, string? query, string searchTopicName);
     bool IsConfigured();
 }
 
@@ -80,7 +80,7 @@ public class EmailTemplatesService : IEmailTemplatesService
     }
 
 
-    public EmailDefinition GetSearchUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, string? query, string changeDescriptorId)
+    public EmailDefinition GetSearchUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, string? query, string changeDescriptorId, string searchTopicName)
     {
         AssertIsUriTemplateOptionsConfigured();
 
@@ -102,6 +102,8 @@ public class EmailTemplatesService : IEmailTemplatesService
         def.Replacements.Add(EmailPlaceholders.ManageMySubscriptionLink, manageSubUrl);
 
         def.Metadata.Add("changeDescriptorId", changeDescriptorId);
+
+        def.Replacements.Add(EmailPlaceholders.SearchTopicName, searchTopicName);
 
         return def;
     }
@@ -132,11 +134,13 @@ public class EmailTemplatesService : IEmailTemplatesService
 
 
 
-    public EmailDefinition GetSubscribedSearchEmailDefinition(EmailAddress recipient, string subscriptionId, string? query)
+    public EmailDefinition GetSubscribedSearchEmailDefinition(EmailAddress recipient, string subscriptionId, string? query, string searchTopicName)
     {
         AssertIsUriTemplateOptionsConfigured();
 
         var def = new EmailDefinition(_emailTemplateOptions.SubscribedSearchNotificationTemplateId, recipient);
+
+        def.Replacements.Add(EmailPlaceholders.SearchTopicName, searchTopicName);
 
         var searchUrl = _uriTemplates!.GetSearchUrl(query);
         def.Replacements.Add(EmailPlaceholders.ViewSearchLink, searchUrl);

@@ -213,6 +213,7 @@ public class SubscriptionService : ISubscriptionService, IClearable
             {
                 EmailAddress = options.EmailAddress,
                 SearchQueryString = options.SearchQueryString,
+                SearchKeywords = options.Keywords,
                 Frequency = options.Frequency,
             };
 

@@ -2,7 +2,7 @@
 
 namespace UKMCAB.Subscriptions.Core.Domain;
 
-public record SearchSubscriptionRequest(EmailAddress EmailAddress, string? SearchQueryString, Frequency Frequency);
+public record SearchSubscriptionRequest(EmailAddress EmailAddress, string? SearchQueryString, Frequency Frequency, string? Keywords);
 
 public record CabSubscriptionRequest(EmailAddress EmailAddress, Guid CabId, Frequency Frequency);
 
