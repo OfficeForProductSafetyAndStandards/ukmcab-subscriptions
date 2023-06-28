@@ -9,7 +9,7 @@ public interface IEmailTemplatesService
     EmailDefinition GetCabUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId, string cabName);
     EmailDefinition GetConfirmCabSubscriptionEmailDefinition(EmailAddress recipient, string token);
     EmailDefinition GetConfirmSearchSubscriptionEmailDefinition(EmailAddress recipient, string token);
-    EmailDefinition GetConfirmUpdateEmailAddressEmailDefinition(EmailAddress recipient, string token);
+    EmailDefinition GetConfirmUpdateEmailAddressEmailDefinition(EmailAddress recipient, string token, string subscriptionId);
     EmailDefinition GetSearchUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, string? query, string changeDescriptorId, string searchTopicName);
     EmailDefinition GetSubscribedCabEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId, string cabName);
     EmailDefinition GetSubscribedSearchEmailDefinition(EmailAddress recipient, string subscriptionId, string? query, string searchTopicName);
@@ -68,13 +68,23 @@ public class EmailTemplatesService : IEmailTemplatesService
     }
 
 
-    public EmailDefinition GetConfirmUpdateEmailAddressEmailDefinition(EmailAddress recipient, string token)
+    public EmailDefinition GetConfirmUpdateEmailAddressEmailDefinition(EmailAddress recipient, string token, string subscriptionId)
     {
         AssertIsUriTemplateOptionsConfigured();
 
         var confirmUrl = _uriTemplates!.GetConfirmUpdateEmailAddressUrl(token);
         var def = new EmailDefinition(_emailTemplateOptions.ConfirmUpdateEmailAddressTemplateId, recipient);
         def.Replacements.Add(EmailPlaceholders.ConfirmLink, confirmUrl);
+
+        var unsubscribeUrl = _uriTemplates.GetUnsubscribeUrl(subscriptionId);
+        def.Replacements.Add(EmailPlaceholders.UnsubscribeLink, unsubscribeUrl);
+
+        var unsubscribeAllUrl = _uriTemplates.GetUnsubscribeAllUrl(recipient);
+        def.Replacements.Add(EmailPlaceholders.UnsubscribeAllLink, unsubscribeAllUrl);
+
+        var manageSubUrl = _uriTemplates.GetManageMySubscriptionUrl(subscriptionId);
+        def.Replacements.Add(EmailPlaceholders.ManageMySubscriptionLink, manageSubUrl);
+
         def.AddMetadataToken(token);
         return def;
     }

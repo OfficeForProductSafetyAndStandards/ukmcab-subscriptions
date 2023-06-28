@@ -267,7 +267,7 @@ public class SubscriptionService : ISubscriptionService, IClearable
         
         await ValidateRequestAsync(options, sub);
         
-        var email = _emailTemplatesService.GetConfirmUpdateEmailAddressEmailDefinition(options.EmailAddress, CreateConfirmationToken(options));
+        var email = _emailTemplatesService.GetConfirmUpdateEmailAddressEmailDefinition(options.EmailAddress, CreateConfirmationToken(options), sub.GetKeys());
         await _outboundEmailSender.SendAsync(email);
         await _repositories.Telemetry.TrackByEmailAddressAsync(options.EmailAddress, $"Requested update email address for subscription ({options.SubscriptionId})");
         await _repositories.Telemetry.TrackByEmailAddressAsync(sub.EmailAddress, $"Requested update email address for subscription ({options.SubscriptionId})");
