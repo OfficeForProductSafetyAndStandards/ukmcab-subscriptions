@@ -242,7 +242,7 @@ public class SubscriptionServiceTests
         var cabId = Guid.NewGuid();
         var subs = _services.GetRequiredService<ISubscriptionService>();
      
-        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily));
+        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily, "This is the cab name"));
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
 
         _outboundEmailSender.Requests.Clear();
@@ -283,12 +283,12 @@ public class SubscriptionServiceTests
 
         await subs.BlockEmailAsync(e);
 
-        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily));
+        var requestSubscriptionResult = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily, "This is the cab name"));
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.EmailBlocked));
         
         await subs.UnblockEmailAsync(e);
 
-        var requestSubscriptionResult2 = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily));
+        var requestSubscriptionResult2 = await subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Daily, "This is the cab name"));
         Assert.That(requestSubscriptionResult2.ValidationResult, Is.EqualTo(ValidationResult.Success));
     }
 

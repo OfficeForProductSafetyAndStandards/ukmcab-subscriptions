@@ -185,7 +185,7 @@ public class SubscriptionService : ISubscriptionService, IClearable
 
         if (validation == ValidationResult.Success)
         {
-            var email = _emailTemplatesService.GetConfirmCabSubscriptionEmailDefinition(request.EmailAddress, CreateConfirmationToken(request));
+            var email = _emailTemplatesService.GetConfirmCabSubscriptionEmailDefinition(request.EmailAddress, CreateConfirmationToken(request), request.CabName);
             await _outboundEmailSender.SendAsync(email);
             await _repositories.Telemetry.TrackByEmailAddressAsync(request.EmailAddress, $"Requested cab subscription (cabid={request.CabId})");
             return new(validation, email.Token);

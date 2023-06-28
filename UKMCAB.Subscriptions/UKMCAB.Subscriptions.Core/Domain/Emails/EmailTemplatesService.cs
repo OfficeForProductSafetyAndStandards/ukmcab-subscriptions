@@ -7,7 +7,7 @@ public interface IEmailTemplatesService
     void AssertIsUriTemplateOptionsConfigured();
     void Configure(UriTemplateOptions uriTemplateOptions);
     EmailDefinition GetCabUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, Guid cabId, string cabName);
-    EmailDefinition GetConfirmCabSubscriptionEmailDefinition(EmailAddress recipient, string token);
+    EmailDefinition GetConfirmCabSubscriptionEmailDefinition(EmailAddress recipient, string token, string cabName);
     EmailDefinition GetConfirmSearchSubscriptionEmailDefinition(EmailAddress recipient, string token);
     EmailDefinition GetConfirmUpdateEmailAddressEmailDefinition(EmailAddress recipient, string token, string subscriptionId);
     EmailDefinition GetSearchUpdatedEmailDefinition(EmailAddress recipient, string subscriptionId, string? query, string changeDescriptorId, string searchTopicName);
@@ -56,13 +56,14 @@ public class EmailTemplatesService : IEmailTemplatesService
     }
 
 
-    public EmailDefinition GetConfirmCabSubscriptionEmailDefinition(EmailAddress recipient, string token)
+    public EmailDefinition GetConfirmCabSubscriptionEmailDefinition(EmailAddress recipient, string token, string cabName)
     {
         AssertIsUriTemplateOptionsConfigured();
 
         var confirmUrl = _uriTemplates!.GetConfirmCabSubscriptionUrl(token);
         var def = new EmailDefinition(_emailTemplateOptions.ConfirmCabSubscriptionTemplateId, recipient);
         def.Replacements.Add(EmailPlaceholders.ConfirmLink, confirmUrl);
+        def.Replacements.Add(EmailPlaceholders.CabName, cabName);
         def.AddMetadataToken(token);
         return def;
     }

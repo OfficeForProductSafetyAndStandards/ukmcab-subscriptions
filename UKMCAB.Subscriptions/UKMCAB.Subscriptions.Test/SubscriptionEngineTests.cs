@@ -270,7 +270,7 @@ public class SubscriptionEngineTests
         const string e = "john@cab.com";
         var cabId = Guid.NewGuid();
 
-        var requestSubscriptionResult = await _subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Realtime));
+        var requestSubscriptionResult = await _subs.RequestSubscriptionAsync(new CabSubscriptionRequest(e, cabId, Frequency.Realtime, "This is the cab name"));
         Assert.That(requestSubscriptionResult.ValidationResult, Is.EqualTo(ValidationResult.Success));
 
         var confirmSubscriptionResult = await _subs.ConfirmCabSubscriptionAsync(requestSubscriptionResult.Token ?? throw new Exception("Token should not be null"));
