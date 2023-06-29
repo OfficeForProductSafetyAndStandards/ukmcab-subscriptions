@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using UKMCAB.Subscriptions.Core.Common.Security;
 using UKMCAB.Subscriptions.Core.Data.Models;
+using UKMCAB.Subscriptions.Core.Domain;
 
 namespace UKMCAB.Subscriptions.Core.Common;
 
@@ -207,5 +208,5 @@ public static class ExtensionMethods
     /// <returns></returns>
     public static TOut Transform<T, TOut>(this T incoming, Func<T, TOut> action) => action(incoming);
 
-    public static string GetSearchSubscriptionTopicName(this SubscriptionEntity subscription) => $"UKMCAB search results{subscription.SearchKeywords.PrependIf(" for '").AppendIf("'")}";
+    public static string GetSearchSubscriptionTopicName(this SubscriptionEntity subscription) => SearchTopicName.Create(subscription.SearchKeywords);
 }

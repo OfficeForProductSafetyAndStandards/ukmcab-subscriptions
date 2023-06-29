@@ -169,7 +169,7 @@ public class SubscriptionService : ISubscriptionService, IClearable
 
         if (validation == ValidationResult.Success)
         {
-            var email = _emailTemplatesService.GetConfirmSearchSubscriptionEmailDefinition(request.EmailAddress, CreateConfirmationToken(request));
+            var email = _emailTemplatesService.GetConfirmSearchSubscriptionEmailDefinition(request.EmailAddress, CreateConfirmationToken(request), SearchTopicName.Create(request.Keywords));
             await _outboundEmailSender.SendAsync(email);
             await _repositories.Telemetry.TrackByEmailAddressAsync(request.EmailAddress, $"Requested search subscription");
             return new(validation, email.Token);
