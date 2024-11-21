@@ -47,6 +47,12 @@ public class SubscriptionServiceTests
     
     private ServiceProvider _services;
 
+    [OneTimeTearDown]
+    public void TearDown()
+    {
+        _services.Dispose();
+    }
+
     [OneTimeSetUp]
     public void SetupOnce()
     {
@@ -72,7 +78,7 @@ public class SubscriptionServiceTests
     [TestCase("?")]
     [TestCase("")]
     [TestCase(null)]
-    public async Task Subscribe_Search(string searchQueryString)
+    public async Task Subscribe_Search(string? searchQueryString)
     {
         var req = new SearchSubscriptionRequest("test@test.com", searchQueryString, Frequency.Realtime, "_keywords_");
 
@@ -111,7 +117,7 @@ public class SubscriptionServiceTests
     [TestCase("a=b&a=c&d=e&f=g&g=h", "?a=b&a=c&d=e&f=g&g=h&", "&d=e&f=g&a=b&a=c&g=h", "&g=h&a=c&d=e&f=g&a=b&page=1&pagesize=10")]
     [TestCase("a=b&a=c&d=e&f=g&g=h", "?a=b&a=c&d=e&f=g&g=h&", "&d=e&f=g&a=b&a=c&g=h", "&g=h&a=c&d=e&f=g&a=b&page=4&pagesize=44", "&g=h&a=c&d=e&f=g&a=b&page=1&pagesize=45")]
     [TestCase("a=b&a=c&d=e&f=g&g=h", "?a=b&a=c&d=e&f=g&g=h&", "&d=e&f=g&a=b&a=c&g=h", "&g=h&a=c&d=e&f=g&a=b&page=18", "&g=h&a=c&d=e&f=g&a=b&page=1")]
-    public async Task Subscribe_Search_Already_Subscrbd(string searchQueryString, params string[] equivs)
+    public async Task Subscribe_Search_Already_Subscrbd(string? searchQueryString, params string?[] equivs)
     {
         var req = new SearchSubscriptionRequest("test@test.com", searchQueryString, Frequency.Realtime, "_keywords_");
         var subs = _services.GetRequiredService<ISubscriptionService>();

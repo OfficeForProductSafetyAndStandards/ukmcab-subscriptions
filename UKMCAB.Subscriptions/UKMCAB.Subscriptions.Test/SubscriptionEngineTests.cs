@@ -20,7 +20,14 @@ public class SubscriptionEngineTests
     private ISubscriptionService _subs;
     private ISubscriptionEngine _eng;
     private IOutboundEmailSender _outboundEmailSender;
+
+    [OneTimeTearDown]
+    public void OneTimeTearDown()
+    {
+        _services.Dispose();
+    }
     
+
     [OneTimeSetUp]
     public void SetupOnce()
     {
@@ -393,7 +400,7 @@ public class SubscriptionEngineTests
     [Test]
     [TestCase("123456789", "UKMCAB search results for '123456789'")]
     [TestCase(null, "UKMCAB search results")]
-    public async Task ProcessSearchSubscribers_Realtime_SearchTopicNameIsCorrect(string keywords, string expectedSearchTopicName)
+    public async Task ProcessSearchSubscribers_Realtime_SearchTopicNameIsCorrect(string? keywords, string expectedSearchTopicName)
     {
         _datetime.UtcNow = new DateTime(1980, 7, 1);
         await SubscribeToSearchAsync("test@test.com", "?name=bob", Frequency.Realtime, keywords);
