@@ -12,6 +12,6 @@ public class QueryString2Tests
         var q3 = QueryString2.Parse("&d=e&f=g&a=b&a=c&g=h&&&&").ToString();
         var q4 = QueryString2.Parse("&g=h&a=c&d=e&f=g&a=b&").ToString();
 
-        Assert.IsTrue(new[] { q1, q2, q3, q4 }.All(x => x.Equals(q1)));
+        Assert.That(new[] { q1, q2, q3, q4 }.All(x => x.Equals(q1)));
     }
 }
