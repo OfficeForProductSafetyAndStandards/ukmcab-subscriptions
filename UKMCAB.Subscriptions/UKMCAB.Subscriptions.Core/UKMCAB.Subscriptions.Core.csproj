@@ -6,7 +6,6 @@
 		<Nullable>enable</Nullable>
 		<OutputType>library</OutputType>
 		<IsPackable>true</IsPackable>
-		<Version>1.2.0</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
