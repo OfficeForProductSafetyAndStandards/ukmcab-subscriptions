@@ -33,6 +33,7 @@ jobs:
         versionSpec: '5.x'
 
     - name: Determine Version
+      id: DetermineVersion
       uses: gittools/actions/gitversion/execute@v0
       with:
           useConfigFile: true
@@ -48,7 +49,7 @@ jobs:
     #  run: dotnet test "${{ env.WORKING_DIRECTORY }}" --no-build --verbosity normal
     
     - name: Package nuget
-      run: dotnet pack "${{ env.WORKING_DIRECTORY }}/UKMCAB.Subscriptions.Core/UKMCAB.Subscriptions.Core.csproj" --configuration ${{ env.CONFIGURATION }} -o:package /p:PackageVersion=$GITVERSION_SEMVER
+      run: dotnet pack "${{ env.WORKING_DIRECTORY }}/UKMCAB.Subscriptions.Core/UKMCAB.Subscriptions.Core.csproj" --configuration ${{ env.CONFIGURATION }} -o:package /p:PackageVersion=${{ steps.DetermineVersion.outputs.SemVer }}
     
     - name: Push generated package to GitHub registry
       run: dotnet nuget push "./package/*.nupkg"  --source https://nuget.pkg.github.com/OfficeForProductSafetyAndStandards/index.json   --api-key ${{ github.token }}
